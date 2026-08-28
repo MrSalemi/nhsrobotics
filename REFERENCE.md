@@ -69,6 +69,7 @@ guide. Run it after any change to `build.js`, `parse.js` or `make.js`.
 
 | Project | Guide | Scaffold | Solution | Ray approved |
 |---|---|---|---|---|
+| P00 First Lights | V01 | V01 | V01 | **new, never run on a robot** |
 | P01 Gamepad Lights | V10 | V04 | V02 | yes |
 | P02 Flashing Lights | V15 | V06 | V06 | yes |
 | P03 Gamepad Driving | V08 | V04 | V03 | yes |

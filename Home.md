@@ -17,6 +17,7 @@ anyone can edit.
 
 | Guide | Title | Version |
 |---|---|---|
+| [p00](guides/p00.md) | First Lights | V01 |
 | [p01](guides/p01.md) | Gamepad Lights | V10 |
 | [p02](guides/p02.md) | Flashing Lights | V15 |
 | [p03](guides/p03.md) | Gamepad Driving | V08 |
