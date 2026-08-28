@@ -72,10 +72,10 @@ guide. Run it after any change to `build.js`, `parse.js` or `make.js`.
 | P01 Gamepad Lights | V10 | V04 | V02 | yes |
 | P02 Flashing Lights | V15 | V06 | V06 | yes |
 | P03 Gamepad Driving | V08 | V04 | V03 | yes |
-| P04 Drive to the Wall and Back | V02 | V02 | V03 | **not yet** |
+| P04 Drive to the Wall and Back | V06 | V04 | V06 | **not yet** |
 | P05 Around the Cone | V03 | V01 | V01 | yes |
 | P06 The Magic Circle | V01 | V01 | V01 | runs on hardware; guide reviewed |
-| P07 The Parking Sensor | V08 | V01 | V04 | **never run on a robot** |
+| P07 The Parking Sensor | V08 | V01 | V01 | **never run on a robot** |
 | P08 The Security Bot | V04 | V03 | V03 | **never run on a robot** |
 | P09 The Sumo Bot | V01 | V01 | V01 | **never run on a robot** |
 | Line alignment (Term 2) | — | — | `sol1x` | works obliquely, poorly near square |
