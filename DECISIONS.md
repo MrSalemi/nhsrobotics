@@ -416,3 +416,52 @@ noted, a decision affects both repos.
     that a builder exists at all. Keeping a private copy per repo is #43's
     rejected option and the reason the submodule existed in the first place.
     — 2026-08-29
+
+46. **Guides are set in Carlito and Courier New, and Robotics keeps the 12pt
+    readability settings.**
+
+    Two font changes and one inherited setting, all settled the same evening.
+
+    **Carlito, not Calibri, for body text.** Calibri ships with Microsoft
+    Office, so whether a machine has it — and how many of its four faces — is an
+    accident of what else is installed. Ray's home Mac had Regular and Bold
+    only, which means italic text was a *synthesised* slant of Regular, and a
+    synthesised slant is not the width of a real italic. The school Mac had no
+    Calibri at all. Carlito is the free metric-compatible clone, installs as a
+    complete family (`brew install --cask font-carlito`), and every machine then
+    lays out from the same file instead of from something merely compatible.
+
+    **Courier New, not Roboto Mono, for code.** Roboto Mono installs as a
+    *variable* font (`RobotoMono[wght].ttf`), and LibreOffice's handling of
+    those is not dependable. Two Macs with byte-identical font files and the
+    same LibreOffice build disagreed: one embedded `RobotoMono-Regular`, the
+    other silently fell back to Linux Libertine G — **a serif proportional
+    face**. Code set in a proportional font is a broken handout, and the build
+    reports success either way, so the failure is invisible until somebody opens
+    the PDF. Courier New ships with macOS and Windows, Drive's viewer has it,
+    and where it is absent LibreOffice substitutes Liberation Mono, its exact
+    metric clone. Both machines now produce structurally identical documents.
+
+    **The guides got bigger, and the spacing came back down to 1.2.** Coming
+    forward to the current builder brought `aa57c06`, the 2026-08-20
+    print-readability change — 12pt body, 1.5 line spacing, left-aligned rather
+    than justified, following the British Dyslexia Association's print guidance
+    and WCAG 1.4.8. It was written for Engineering, and Robotics inherited it.
+
+    The 12pt and the ragged right are kept exactly as written; they are doing
+    most of the work and they cost little. The spacing was cut from 1.5 to 1.2
+    after comparing rendered pages side by side: at 1.5 the paragraphs stopped
+    holding together as blocks and the page read as airy rather than open. 1.2
+    keeps the lines clearly separated, which is what the guidance protects. A
+    full set went 31 sheets per student → 44 at 1.5 → **40 at 1.2**.
+
+    `LINE` is now an environment override, so the next comparison needs no edit:
+    `LINE=312 ./build-all.sh -f p00.md`. The test that guarded this asserted
+    `w:line="360"` exactly, which pinned the digit rather than the decision and
+    failed the moment the number moved; it now asserts a floor, so the value can
+    be tuned but a guide cannot quietly fall back to single spacing.
+
+    **The lesson underneath all three:** a font named in the source is a
+    *request*, not a guarantee. What actually rendered is in the PDF, and
+    `pdffonts` is the only honest answer. Page-count drift between two machines
+    is the visible symptom of a silent substitution somewhere. — 2026-08-29

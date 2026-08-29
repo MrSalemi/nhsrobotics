@@ -140,8 +140,17 @@ approved.
 - **The three project files carry real links now**, and `Home.md` is the vault's
   front door.
 
-**Current page counts, measured 2026-08-12:** P01 6, P02 6, P03 6, P04 8, P05 6,
-P06 8, P07 8, P08 8, P09 6.
+**Current page counts, measured 2026-08-29:** P00 6, P01 8, P02 8, P03 8, P04 8,
+P05 8, P06 10, P07 8, P08 10, P09 6. That is **40 sheets per student**, duplex,
+up from 31.
+
+The guides grew when the builder came forward to `aa57c06`, Ray's 2026-08-20
+print-readability change: 12pt body, open line spacing, left-aligned rather
+than justified, following the British Dyslexia Association's print guidance and
+WCAG 1.4.8. Written for Engineering and inherited by Robotics on 2026-08-29.
+The 12pt and the ragged right are kept as written; the spacing was cut from 1.5
+to 1.2 after comparing rendered pages, which gave back four sheets a student and
+reads better. See [DECISIONS #46](DECISIONS.md).
 
 ## What's open
 
