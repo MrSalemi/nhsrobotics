@@ -1,2 +1,7 @@
-# Where the built guides are deployed, relative to the Class Development folder.
-Robotics/Project Guides
+# Where the built guides are deployed.
+#
+# The whole path, starting with the shared Drive folder. The builder finds that
+# first component under this machine's Google Drive mounts and appends the rest,
+# so this one line works whether the folder is owned here or reached through a
+# shortcut.
+Class Development/Robotics/Project Guides
