@@ -23,13 +23,17 @@ So: **never put `PROJECT.md`, `DECISIONS.md` or `REFERENCE.md` in
 
 ## Repos involved
 
-- **`nhsrobotics`** (`~/repos/sch_repo/nhsrobotics`) — **this folder, and home
+- **`nhsrobotics`** (`~/vaults/nhsrobotics`) — **this folder, and home
   for the project.** The code: student scaffolds in `projects/`, reference
-  answers in `solutions/`, the shared library in `nhs_lib/`, guide source and
-  guide source in `guides/`, the builder as a submodule in `builder/`, the
+  answers in `solutions/`, the shared library in `nhs_lib/`, guide source in
+  `guides/`, the builder symlinked as `shared/`, the
   testbench in `tests/`. Guides are generated from the markdown in `guides/`
   and never hand-edited. **The
   repo is also the Obsidian vault** — see [DECISIONS #35](DECISIONS.md).
+- **`~/vaults/shared`** — the guide builder, `MrSalemi/vault-shared`, cloned
+  once and linked into every vault. Not a submodule — see
+  [DECISIONS #45](DECISIONS.md). Every vault lives directly under `~/vaults/` on
+  both machines so that `../shared` resolves the same way on each.
 - **`Class Development`** — the documents, and NOT home. Deployed robotics
   guides land in `Robotics/Project Guides/`, retired old-voice guides in its
   `Previous Versions/`, capstone specs and the pacing plan under `Robotics/`,

@@ -370,3 +370,49 @@ noted, a decision affects both repos.
       a run of adjacent paragraphs with identical borders as one bordered block
       and draws the rule once around the group, so four ruled lines came out as
       a single line with a lot of white above it. — 2026-08-13
+
+45. **The shared builder is a sibling directory reached by a symlink. It is not a
+    submodule.**
+
+    The builder is cloned once at `~/vaults/shared`, and every vault holds
+    `shared -> ../shared`, a committed relative symlink. All vaults sit directly
+    under `~/vaults/` on both machines, which is what makes the relative path
+    work regardless of the account name — `rsalemi` at school, `raysalemi` at
+    home.
+
+    **A submodule is right for code you consume and wrong for code you author.**
+    The Qwiic libraries are the right shape: third-party, rarely changed, pinned
+    on purpose, and moving to a new version is a deliberate event. The builder is
+    the opposite in every dimension. Ray writes it, it changes weekly, all vaults
+    want the newest, and it has no stable interface — changing the format of
+    `deploy.txt` required coordinated edits in three consumers, which is exactly
+    what pinning does not help with.
+
+    The cost was ceremony. Every builder change meant two commits in two repos
+    plus a pointer bump per vault, on top of a preflight for detached HEAD, a
+    missing fetch refspec, and a stale local checkout. On 2026-08-29 the local
+    copy was eight commits and 106 lines of `build-all.sh` behind while looking
+    perfectly healthy; the edit was written against the stale file and had to be
+    thrown away and redone. When a routine edit needs a 130-line checklist, the
+    container is wrong.
+
+    **What this gives up is pinning.** A bad builder commit now breaks every
+    course at once instead of leaving Engineering insulated until it chooses to
+    move. That isolation was mostly theoretical — [#43](DECISIONS.md) records
+    that every fix was hand-carried into both repos anyway — and recovery is one
+    `git checkout` in `~/vaults/shared`.
+
+    **No paths change.** `guides/../shared/topdf.js` still resolves,
+    `worksheet.js` needs no edit, `node ../shared/test-build.js` still runs. The
+    symlink is committed, matching the `lib`, `projects` and `tests` links in
+    `init_bot/nhs_robot/`, so a fresh clone gets it and fails loudly and
+    obviously if `~/vaults/shared` is not there.
+
+    **Paths not taken.** Putting the builder on `PATH` is architecturally
+    cleaner — it is a tool, not content, and `build-all.sh` already resolves its
+    own location and takes the guides from `pwd`. But `worksheet.js` resolves
+    `../shared/node_modules/docx` and `../shared/topdf.js` as siblings, so it
+    would need a refactor in every vault, and a cloned vault would carry no hint
+    that a builder exists at all. Keeping a private copy per repo is #43's
+    rejected option and the reason the submodule existed in the first place.
+    — 2026-08-29

@@ -14,17 +14,31 @@ copy of a guide anywhere, which is the point — an edit that is not in the
 markdown cannot survive, so it cannot be made by accident.
 
 **Content and builder are separate folders.** `guides/` holds the markdown,
-`images/`, `course.js`, `deploy.txt` and the built PDFs. `builder/` is a
-submodule of `rsalemiTeaches/guide-builder`, **shared with `nhsengineering`**,
-and holds no guides, no pictures and no course text. Run the build from
-`guides/`.
+`images/`, `course.js`, `deploy.txt` and the built PDFs. `shared/` is the
+builder — `MrSalemi/vault-shared`, **shared with `nhsengineering` and
+`advrobotics`** — and holds no guides, no pictures and no course text.
+
+**`shared/` is a symlink to `../shared`, not a submodule.** The builder is
+cloned once at `~/vaults/shared` and every vault links to it, so an edit is one
+commit in one repo and every vault sees it at once. All vaults live directly
+under `~/vaults/` on both machines, which is what makes the relative link work
+across two different account names. See [DECISIONS #45](DECISIONS.md). If
+`shared/build-all.sh: No such file` appears on a new machine, `~/vaults/shared`
+has not been cloned yet.
+
+Run the build from `guides/`.
 
 ```bash
 cd guides
-../builder/build-all.sh p05.md -d   # build one guide and deploy it
-../builder/build-all.sh -d          # build every guide that needs it, deploy
-../builder/build-all.sh -f          # rebuild everything, current or not
+../shared/build-all.sh p05.md -d   # build one guide and deploy it
+../shared/build-all.sh -d          # build every guide that needs it, deploy
+../shared/build-all.sh -f          # rebuild everything, current or not
+node ../shared/test-build.js       # the builder's own test suite
 ```
+
+The builder needs `node`, `soffice` (LibreOffice) and `pdftoppm` (Poppler) on
+`PATH`, plus `shared/node_modules` — `cd ~/vaults/shared && npm install` once
+per machine.
 
 The words behind `{{SAVE}}`, `{{PARTA}}` and `{{GRADING}}` are in
 `guides/course.js`, not in the builder — a shared builder cannot carry one
@@ -39,11 +53,11 @@ difference between a minute and a second.
 Deploying writes into Google Drive. A PDF open in a viewer is only being read,
 so it will not make a conflicted copy the way an open Word file could.
 
-`node ../builder/test-build.js` from `guides/` checks the builder — no
+`node ../shared/test-build.js` from `guides/` checks the builder — no
 robot and no Word, building into a temp folder so it never touches a deployed
 guide. Run it after any change to `build.js`, `parse.js` or `make.js`.
 
-[builder/README.md](builder/README.md) explains the builder itself. Rules that bite:
+[shared/README.md](shared/README.md) explains the builder itself. Rules that bite:
 
 - **Images must be real PNGs.** The builder reads the PNG header and refuses
   anything else. A JPEG renamed `.png` fails the build. Crop tight, export

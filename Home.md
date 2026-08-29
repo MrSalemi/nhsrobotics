@@ -33,15 +33,16 @@ backlinks pane show how the projects feed each other.
 
 ## Building the guides
 
-The builder is `builder/`, a submodule **shared with `nhsengineering`**. It holds
+The builder is `shared/`, a symlink to `../shared` — one clone at
+`~/vaults/shared`, **shared with `nhsengineering` and `advrobotics`**. It holds
 no guides, no pictures and no course text. Run it from `guides/`.
 
 ```bash
 cd guides
-../builder/build-all.sh          # build every guide that needs it
-../builder/build-all.sh p05.md   # build one
-../builder/build-all.sh -d       # build and copy into Project Guides
-../builder/build-all.sh -f       # rebuild everything, current or not
+../shared/build-all.sh          # build every guide that needs it
+../shared/build-all.sh p05.md   # build one
+../shared/build-all.sh -d       # build and copy into Project Guides
+../shared/build-all.sh -f       # rebuild everything, current or not
 ```
 
 A guide is only rebuilt when its markdown, one of its pictures, `course.js`, or
