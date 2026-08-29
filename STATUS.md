@@ -2,7 +2,7 @@
 
 Home folder for the robotics curriculum. Three files:
 
-- **`PROJECT.md`** (this file) — what is being worked on right now.
+- **`STATUS.md`** (this file) — what is being worked on right now.
 - **[DECISIONS.md](DECISIONS.md)** — settled calls, numbered and permanent.
 - **[REFERENCE.md](REFERENCE.md)** — durable knowledge: guide production, what the course
   teaches and why, measured hardware behaviour, and the silent failure modes.
@@ -18,10 +18,10 @@ own threads and its own history. A single `PROJECT.md` at the top of a folder
 shared by three courses would mix them, and a thread about Physics would open
 by reading the state of Robotics.
 
-So: **never put `PROJECT.md`, `DECISIONS.md` or `REFERENCE.md` in
+So: **never put `STATUS.md`, `DECISIONS.md` or `REFERENCE.md` in
 `Class Development`.** Each class keeps its own set, in its own home.
 
-## Repos involved
+## Folders involved
 
 - **`nhsrobotics`** (`~/vaults/nhsrobotics`) — **this folder, and home
   for the project.** The code: student scaffolds in `projects/`, reference
@@ -40,12 +40,55 @@ So: **never put `PROJECT.md`, `DECISIONS.md` or `REFERENCE.md` in
   and the school calendar at the top level. Physics and Engineering also live
   there and are out of scope for this project.
 
+  It is one Drive folder owned by `rdsalemi@gmail.com` and shared to
+  `rsalemi@natickps.org`, so its local path differs per machine — `My
+  Drive/Teaching/Class Development` at home, `.shortcut-targets-by-id/<id>/Class
+  Development` at school. The builder finds it by searching rather than by a
+  stored path; see [DECISIONS #45](DECISIONS.md).
+
+**Mount `~/vaults` rather than a single vault.** The builder is a sibling at
+`~/vaults/shared`, outside any one vault, and a symlink pointing outside a
+mounted folder is invisible to a thread — `shared/` looks broken.
+
+## Sandbox setup
+
+Nothing per-session. Per *machine*, the guide pipeline needs `node`, `soffice`
+(LibreOffice), `pdftoppm` (Poppler), `mpremote`, the fonts Carlito and Roboto
+Mono, and `~/vaults/shared/node_modules` from one `npm install`. Both of Ray's
+Macs were brought to matching versions on 2026-08-29. **The school network
+blocks npm and GitHub**, so anything needing a download has to happen at home.
+
+Check any machine with:
+
+```bash
+for t in node npm git soffice pdftoppm mpremote; do
+  printf "%-12s " "$t"; command -v $t >/dev/null && echo ok || echo MISSING
+done
+[ -d ~/vaults/shared/node_modules ] && echo "node_modules ok" || echo "node_modules MISSING"
+```
+
 ## Current unit
 
-**P07, P08 and P09 are all written. None of them has been run on a robot.**
+**P00 First Lights is new, and P07-P09 have still never been run on a robot.**
+
+P00 was written 2026-08-29 as a day-one project that needs nothing but a USB
+cable — no WiFi, no browser, no Bluetooth, no controller. Four steps in one
+loop: left red / right green, swap, both yellow, dark. The one real idea is
+that yellow is not on the list of colors and has to be made from red plus
+green. The three setup lines are GIVEN here and typed by hand in P01, which is
+the one design call worth revisiting: day one buys a win, day two buys the
+understanding.
+
+Numbering it zero was deliberate — nothing above it moved, so no guide, scaffold
+or cross-reference was renumbered.
+
+**P00 is on the robots and its guide is deployed.** It has not been taught.
+It is not in the calendar, and Term 1 has no slack: twelve entries, 22 Red days,
+P01 due 9/01. Fitting P00 in is Ray's call and has not been made.
 
 | # | Project | State |
 |---|---|---|
+| P00 | First Lights — two LEDs, a pattern, and a USB cable | Guide V01, scaffold V01, solution V01. Deployed and on the robots. Never taught. |
 | P07 | The Parking Sensor — seconds on the OLED, blink rate from distance, then drive | Guide V08, scaffold and solution written. Never run on a robot. |
 | P08 | The Security Bot — patrol, advance, and run away. Introduces the state machine | Guide V04, scaffold V03, solution V03. Never run on a robot. |
 | P09 | The Sumo Bot — patrol the ring, charge, and never fall out | Guide V01, scaffold V01, solution V01. Never run on a robot. |
@@ -59,12 +102,35 @@ P10+ project as an argument about P07-P09 — those slots may be rewritten or cu
 
 ## What's done
 
-- **The builder is now a shared submodule at `builder/`**, the same repo and the
-  same commit Engineering uses; `guide_builder/` is gone and the guides, their
-  pictures and the built PDFs are in `guides/`. All nine build from it, and the
-  printed text is unchanged except P06, whose page breaks fall differently now
-  that a picture no longer glues itself to the heading below it — same eight
-  pages, same words. [DECISIONS #43](DECISIONS.md).
+**2026-08-29 — the builder stopped being a submodule, and the guides got their
+fonts and spacing settled.** A long session; the detail is in DECISIONS #45 and
+#46. In short:
+
+- **`shared/` is a symlink to `../shared`, one clone at `~/vaults/shared`,
+  linked into all five vaults.** A submodule is right for code you consume and
+  wrong for code you author — every builder edit had cost two commits in two
+  repos plus a pointer bump per vault, on top of a preflight for detached HEAD,
+  missing fetch refspec, and a stale checkout. [DECISIONS #45](DECISIONS.md).
+- **The builder finds Class Development by searching** `~/Library/CloudStorage`
+  for the folder named in `deploy.txt`, which now holds the whole path
+  (`Class Development/Robotics/Project Guides`). One line works on a machine
+  that owns the folder and on one that reaches it through a shortcut.
+- **Guides are set in Carlito and Courier New, at 1.2 line spacing.** Both
+  earlier choices — Calibri and Roboto Mono — rendered differently on Ray's two
+  Macs, and the Roboto Mono failure was silent: school fell back to a serif
+  *proportional* face for code and the build reported success.
+  [DECISIONS #46](DECISIONS.md).
+- **`guides/worksheet.js` had been broken since 2026-08-16**, still pointing at
+  `../builder/` after the move to `shared/`. Fixed.
+- **All ten guides plus the worksheet rebuilt and deployed** from one machine,
+  so Drive is internally consistent for the first time today.
+
+- ~~**The builder is now a shared submodule at `builder/`**, the same repo and
+  the same commit Engineering uses~~ — 2026-08-29: superseded. It is a symlink
+  to a sibling clone now, not a submodule, and the path is `shared/` not
+  `builder/`. See [DECISIONS #45](DECISIONS.md). The rest of #43 still stands:
+  `guide_builder/` is gone, the guides and their pictures are in `guides/`, and
+  one builder serves every course. [DECISIONS #43](DECISIONS.md).
 - **The worksheet is generated and deployed with the guides.**
   `guides/worksheet.js` is the source and writes
   *Robotics_Project_Worksheet.pdf*; `guides/extras.txt` gets one
@@ -104,8 +170,13 @@ P10+ project as an argument about P07-P09 — those slots may be rewritten or cu
   it now belongs to the Term 2 project.
 - **The `GIVEN:` comment convention was extended to P01-P06 scaffolds.** Comments
   only; no code changed, so the approved guides still match.
-- **`projects/` and `solutions/` hold P01-P09.** Everything from P10 up is in
-  `old_projects/` and `old_solutions/`.
+- **`projects/` and `solutions/` hold P00-P09, and nothing else.**
+  ~~Everything from P10 up is in `old_projects/` and `old_solutions/`.~~ —
+  2026-08-29: those folders were deleted. They lived *inside* `projects/`, which
+  is symlinked onto every student robot, so ten dead scaffolds with colliding
+  numbers were shipping to the class. Git has them: they were moved in
+  `09df78d`, so any file is recoverable with
+  `git show 09df78d^:projects/p10_traffic_light.py`.
 - **The solution testbench covers P08 and P09.** `tests/tb/plant.py` V02 gained a
   `Target` — stand, flee, chase or glued to the robot's nose, visible only
   inside a 30 degree cone — and a ring, so the line sensors read black-high
@@ -135,8 +206,10 @@ approved.
   as its label only. [DECISIONS #39](DECISIONS.md).
 - **Pictures are capped at 6.5 × 4.5 inches** and no longer chain together
   across a page break. [DECISIONS #40](DECISIONS.md).
-- **`builder/test-build.js` is new** — 26 checks, no robot and no Word,
-  building into a temp folder. [DECISIONS #41](DECISIONS.md).
+- **`shared/test-build.js`** — no robot and no Word, building into a temp
+  folder. It was 26 checks when written; it is well past 300 lines now and
+  covers deploy behaviour, page layout, math and idempotence. Run it after any
+  builder change. [DECISIONS #41](DECISIONS.md).
 - **The three project files carry real links now**, and `Home.md` is the vault's
   front door.
 
@@ -153,6 +226,25 @@ to 1.2 after comparing rendered pages, which gave back four sheets a student and
 reads better. See [DECISIONS #46](DECISIONS.md).
 
 ## What's open
+
+**P00, and the calendar**
+
+- **Where P00 goes in Term 1.** The calendar has twelve entries, 22 Red days,
+  and P01 due 9/01. P00 exists, is deployed and is on the robots, but nothing
+  has been moved to make room for it. Ray sees the class next on Tuesday.
+- **Whether P01 should still have students type the three setup lines**, now
+  that P00 gives them. Currently P00 gives, P01 types. Reversing it means
+  editing P01, which is why it was left alone.
+- **P00 has never been taught**, and its FLEX (invent a fourth color by mixing)
+  has never been tried by a student.
+
+**The other four vaults have not had the spacing change deployed**
+
+`shared` is one clone linked into all five vaults, so `nhsengineering`,
+`advrobotics` and `physics` will pick up Carlito, Courier New and 1.2 spacing
+the moment anyone rebuilds — but their guides in Drive are still the old
+rendering. Their guide folders are `guides/unit01`, `guides/unit02`,
+`guides/squarebot` and `lectures/`. Robotics only was rebuilt on 2026-08-29.
 
 **P07**
 
@@ -230,6 +322,11 @@ is where a student's own fourth state, and the podium, are won.
 - **`tests/tb` is on the robots.** It is now in `init_bot/nhs_robot/.robotignore`
   so it will not be uploaded again, but a whitelisted path is one the sync
   leaves alone, so any copy already on a robot needs one `mpremote rm -r :tests/tb`.
+- **`projects/old_projects` is on the robots**, same trap. The folder is gone
+  from the repo as of 2026-08-29, but the sync only stops *sending* it — every
+  robot already initialised keeps its copy until it gets one
+  `mpremote rm -r :projects/old_projects`. Ten dead scaffolds with numbers that
+  collide with the real ones, in a folder students can open.
 
 **Library work owed**
 
