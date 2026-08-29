@@ -28,10 +28,10 @@ try {
   d = require('docx');
 } catch (e) {
   try {
-    d = require(path.resolve(__dirname, '../builder/node_modules/docx'));
+    d = require(path.resolve(__dirname, '../shared/node_modules/docx'));
   } catch (e2) {
     console.error("cannot find the 'docx' package.");
-    console.error("it comes with the builder:  ( cd ../builder && npm install )");
+    console.error("it comes with the builder:  ( cd ../shared && npm install )");
     process.exit(1);
   }
 }
@@ -238,5 +238,5 @@ const doc = new Document({
 // A PDF, not a Word file. The .docx is an intermediate in a temp folder and is
 // deleted -- nothing an editor can open is left behind, so a typo fixed by hand
 // cannot survive the next build. Same rule as the guides.
-const {writePdf} = require(path.resolve(__dirname, '../builder/topdf.js'));
+const {writePdf} = require(path.resolve(__dirname, '../shared/topdf.js'));
 writePdf(doc, OUT, Packer);
