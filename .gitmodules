@@ -10,6 +10,3 @@
     path = libs_on_github/arduino-alvik-mpy
 	url = https://github.com/rsalemiTeaches/arduino-alvik-mpy
 	branch = main
-[submodule "shared"]
-	path = shared
-	url = https://github.com/MrSalemi/vault-shared.git
