@@ -46,26 +46,53 @@ So: **never put `STATUS.md`, `DECISIONS.md` or `REFERENCE.md` in
   Development` at school. The builder finds it by searching rather than by a
   stored path; see [DECISIONS #45](DECISIONS.md).
 
-**Mount `~/vaults` rather than a single vault.** The builder is a sibling at
-`~/vaults/shared`, outside any one vault, and a symlink pointing outside a
-mounted folder is invisible to a thread — `shared/` looks broken.
+**The Cowork project mounts exactly these three, and nothing else:**
+
+```
+nhsrobotics          the work
+shared               the builder, reached from the vault by symlink
+Class Development    where -d deploys
+```
+
+`shared` has to be its own entry. The vault reaches it through
+`shared -> ../shared`, and a symlink resolves only to something that is also
+mounted — mounts land side by side under one root, so `..` from inside the
+vault finds the others.
+
+`Class Development` is needed only because a *thread* deploys. `build-all.sh`
+searches `$HOME/Library/CloudStorage` and `/sessions/*/mnt`; on Ray's Mac the
+first finds it, but in a thread's sandbox `$HOME` has no `Library`, so only the
+mount can match. Drop it from Context if deploying becomes Ray's job alone.
+
+~~Mount `~/vaults` rather than a single vault.~~ — 2026-08-30: superseded. A
+Cowork project takes several Context folders, so the three above are named
+directly. Mounting `~/vaults` also works but hands every project all five
+courses and lists `nhsrobotics` twice.
 
 ## Sandbox setup
 
 Nothing per-session. Per *machine*, the guide pipeline needs `node`, `soffice`
-(LibreOffice), `pdftoppm` (Poppler), `mpremote`, the fonts Carlito and Roboto
-Mono, and `~/vaults/shared/node_modules` from one `npm install`. Both of Ray's
-Macs were brought to matching versions on 2026-08-29. **The school network
-blocks npm and GitHub**, so anything needing a download has to happen at home.
+(LibreOffice), `pdftoppm` (Poppler), `mpremote`, the **Carlito** font, and
+`~/vaults/shared/node_modules` from one `npm install`. Both of Ray's Macs were
+brought to matching versions on 2026-08-30. **The school network blocks npm and
+GitHub**, so anything needing a download has to happen at home.
 
-Check any machine with:
+Full list with verified versions, and why each is needed, is in
+[shared/TOOLS.md](shared/TOOLS.md) §3. Check any machine with:
 
 ```bash
 for t in node npm git soffice pdftoppm mpremote; do
   printf "%-12s " "$t"; command -v $t >/dev/null && echo ok || echo MISSING
 done
+printf "%-12s %s\n" carlito "$(fc-list | grep -ic carlito) faces (want 4)"
 [ -d ~/vaults/shared/node_modules ] && echo "node_modules ok" || echo "node_modules MISSING"
 ```
+
+~~The fonts Carlito **and Roboto Mono**.~~ — 2026-08-30: Roboto Mono is no
+longer used. See [DECISIONS #46](DECISIONS.md).
+
+`build-all.sh` now catches a missing `node_modules` itself and prints the
+command, instead of dying in a node stack trace.
 
 ## Current unit
 
@@ -75,16 +102,13 @@ P00 was written 2026-08-29 as a day-one project that needs nothing but a USB
 cable — no WiFi, no browser, no Bluetooth, no controller. Four steps in one
 loop: left red / right green, swap, both yellow, dark. The one real idea is
 that yellow is not on the list of colors and has to be made from red plus
-green. The three setup lines are GIVEN here and typed by hand in P01, which is
-the one design call worth revisiting: day one buys a win, day two buys the
-understanding.
+green. The three setup lines are GIVEN here and typed by hand in P01.
 
 Numbering it zero was deliberate — nothing above it moved, so no guide, scaffold
 or cross-reference was renumbered.
 
-**P00 is on the robots and its guide is deployed.** It has not been taught.
-It is not in the calendar, and Term 1 has no slack: twelve entries, 22 Red days,
-P01 due 9/01. Fitting P00 in is Ray's call and has not been made.
+**P00 is on the robots and its guide is deployed.** It has not been taught, and
+it is not in the calendar.
 
 | # | Project | State |
 |---|---|---|
@@ -124,6 +148,34 @@ fonts and spacing settled.** A long session; the detail is in DECISIONS #45 and
   `../builder/` after the move to `shared/`. Fixed.
 - **All ten guides plus the worksheet rebuilt and deployed** from one machine,
   so Drive is internally consistent for the first time today.
+
+**2026-08-30 — the builder documents and defends itself.** Same session, into
+Sunday morning.
+
+- **[shared/TOOLS.md](shared/TOOLS.md) is new** — the operator manual, as
+  opposed to `README.md`'s user manual. Every tool and how it is invoked, what
+  makes a guide stale, how to add a check, the external programs and fonts with
+  verified versions, how deploy finds Class Development, and the push gate. It
+  ends with a list of everything that has bitten. `start-thread` now reads it.
+- **`shared/preflight.sh` is the gate, and a `pre-push` hook runs it.** It
+  checks the tools, checks the installed tree matches `package.json` the way
+  `npm ci` will on the runner, then runs the suite twice: as the machine is, and
+  with `NO_SOFFICE=1`, which is what CI sees. **`build-all.sh` wires the hook
+  itself** on the first build after a clone, so there is nothing to remember.
+- **The GitHub Action was red and is green.** A check added with the `folder:`
+  feature ran a real `-d` deploy, so it needed LibreOffice, which the runner
+  deliberately does not have. PDF-dependent checks now report `SKIP` by name.
+  The workflow also moved off node 20, which GitHub has deprecated.
+- **Two silent bugs found and fixed.** `math.js` was missing from
+  `BUILDER_FILES`, so editing it left every guide reporting "up to date" and the
+  change never appeared. And a check hunted for tools in a hardcoded list of
+  directories, which stopped finding `node` the moment it moved to Homebrew —
+  it then withheld node from its own fixture and failed naming the wrong tool.
+- **`start-thread`, `close-out-thread` and `save-memory` take the vault from
+  the project instructions** rather than scanning for `STATUS.md`. Scanning
+  found one when a single vault was mounted and five when `~/vaults` was; the
+  project already knows which course it is. Named, or ask — see
+  [DECISIONS #47](DECISIONS.md).
 
 - ~~**The builder is now a shared submodule at `builder/`**, the same repo and
   the same commit Engineering uses~~ — 2026-08-29: superseded. It is a symlink
@@ -227,24 +279,24 @@ reads better. See [DECISIONS #46](DECISIONS.md).
 
 ## What's open
 
-**P00, and the calendar**
-
-- **Where P00 goes in Term 1.** The calendar has twelve entries, 22 Red days,
-  and P01 due 9/01. P00 exists, is deployed and is on the robots, but nothing
-  has been moved to make room for it. Ray sees the class next on Tuesday.
-- **Whether P01 should still have students type the three setup lines**, now
-  that P00 gives them. Currently P00 gives, P01 types. Reversing it means
-  editing P01, which is why it was left alone.
-- **P00 has never been taught**, and its FLEX (invent a fourth color by mixing)
-  has never been tried by a student.
-
-**The other four vaults have not had the spacing change deployed**
+**The other four vaults have not had the font and spacing change deployed**
 
 `shared` is one clone linked into all five vaults, so `nhsengineering`,
-`advrobotics` and `physics` will pick up Carlito, Courier New and 1.2 spacing
-the moment anyone rebuilds — but their guides in Drive are still the old
-rendering. Their guide folders are `guides/unit01`, `guides/unit02`,
-`guides/squarebot` and `lectures/`. Robotics only was rebuilt on 2026-08-29.
+`advrobotics` and `physics` pick up Carlito, Courier New and 1.2 spacing the
+moment anyone rebuilds — but their guides in Drive are still the old rendering,
+and their page counts will move when they are rebuilt. Their guide folders are
+`guides/unit01`, `guides/unit02`, `guides/squarebot` and `lectures/`. Robotics
+only was rebuilt on 2026-08-29.
+
+Each also needs its own Cowork project with the three Context folders, and its
+own `~/vaults/shared` clone on whichever machine has not got one.
+
+**The home machine has not run a `-d` build since the font change**
+
+Everything on 2026-08-30 was verified on the school Mac and in a thread's
+sandbox. Home built `p00.md` and matched, but has not deployed, and its
+`preflight.sh` and `pre-push` hook have not been exercised. Nothing suggests
+they will not work; nobody has watched them.
 
 **P07**
 

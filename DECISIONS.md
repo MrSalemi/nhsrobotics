@@ -465,3 +465,68 @@ noted, a decision affects both repos.
     *request*, not a guarantee. What actually rendered is in the PDF, and
     `pdffonts` is the only honest answer. Page-count drift between two machines
     is the visible symptom of a silent substitution somewhere. — 2026-08-29
+
+47. **A thread is told which vault it is in. It does not go looking.**
+    *(affects every vault, and `start-thread`, `close-out-thread`,
+    `save-memory`.)*
+
+    Those three skills used to find home by scanning the mounted folders for one
+    containing `STATUS.md`, with "more than one found" as a stop-and-ask. That
+    rule only worked while exactly one vault was ever mounted. It gives zero
+    matches if `~/vaults` is mounted, since the vaults are a level down, and
+    five if you scan a level deeper. Neither number is information.
+
+    So the rule is now: **the Cowork project instructions name the vault, and
+    that vault is home. Otherwise ask.** No scan, no fallback, no cleverness.
+    The project already knows which course it is; the instructions just say so
+    out loud, and they are injected into every thread automatically, so the
+    thread knows before it does anything. A project whose instructions do not
+    name a vault gets asked, which is the right failure — it tells Ray exactly
+    what one line is missing.
+
+    **The Cowork project mounts three Context folders**, not one and not the
+    parent: the vault, `shared`, and `Class Development`. A Cowork project takes
+    several — the documentation says "add a local folder" and I read that as a
+    limit; it is not.
+
+    `shared` must be its own entry because the vault reaches it through
+    `shared -> ../shared`, and a symlink resolves only to something that is also
+    mounted. Mounts land side by side under one root, so `..` from inside the
+    vault reaches its siblings — verified by building a symlink of that shape
+    and watching it resolve. `Class Development` is needed only so a *thread*
+    can deploy: `build-all.sh` searches `$HOME/Library/CloudStorage` and
+    `/sessions/*/mnt`, and in a sandbox `$HOME` has no `Library`.
+
+    **Paths not taken.** Mounting `~/vaults` alone works and is one entry
+    instead of three, but hands every course project all five vaults. Mounting
+    only the vault leaves `shared/` dangling, which is what started this. — 2026-08-30
+
+48. **The builder guards its own push, and installs the guard itself.**
+    *(affects `shared`, and therefore every vault.)*
+
+    `shared/preflight.sh` runs the test suite twice — as the machine is, and
+    with `NO_SOFFICE=1`, which is what the CI runner sees — plus a tools check
+    and the `npm ci` consistency check the runner will make. A `pre-push` hook
+    in `.githooks/` runs it and refuses the push when it fails.
+
+    Git does not track `.git/hooks`, so a fresh clone has none and would need
+    `git config core.hooksPath .githooks` run by hand. **`build-all.sh` does it**
+    on the first build after a clone. A thing somebody has to remember is a bug
+    with a delay on it, and the whole point of a gate is that it does not depend
+    on anyone's memory. Ray's words: *"No technical debt, that includes having
+    to remember stuff."*
+
+    This exists because the Action was red at `9b109ff` and had been for a
+    while. A check added with the `folder:` feature ran a real `-d` deploy, so
+    it needed LibreOffice, which the runner deliberately does not install — the
+    run stays at about fifteen seconds and needs no office suite. Checks that
+    need a real PDF now report **SKIP** by name. A skip is loud on purpose: a
+    check that quietly vanishes is worse than one that fails, and anything
+    touching conversion or deployment still has to be run somewhere with
+    LibreOffice.
+
+    **Paths not taken.** Installing LibreOffice on the runner would let every
+    check run, at the cost of minutes per push and a runner that has to be
+    maintained. Leaving `preflight.sh` as a documented manual step was the first
+    version of this and was rejected on the same grounds as the hook wiring.
+    — 2026-08-30
