@@ -1,4 +1,10 @@
 #!/bin/bash
+# v31 - Refuse to run when a symlink in the source tree points at nothing.
+#       The cleanup decides a robot file is stale with [ -d ] and [ -f ],
+#       and both follow symlinks, so a dangling link looks exactly like a
+#       file somebody deleted on purpose. With libs_on_github not checked
+#       out, that deleted the Alvik driver off a robot and printed a tick
+#       -- twice. The check runs before the robot is touched at all.
 # v30 - Never ship the laptop's droppings. __pycache__, .DS_Store and
 #       stray .pyc files are stripped from the staging copy before upload,
 #       and deleted from the robot if they are already there. The delete
@@ -36,11 +42,48 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo "Running initialize_robot.sh - v29 (main.py is the student's)"
+echo "Running initialize_robot.sh - v31 (broken symlinks stop the run)"
 
 # --- VALIDATION ---
 if [ -z "$SOURCE_DIR" ]; then echo "❌ ERROR: Source directory not specified. Use -d <path>."; exit 1; fi
 if [ ! -d "$SOURCE_DIR" ]; then echo "❌ ERROR: Source '$SOURCE_DIR' is not a valid directory."; exit 1; fi
+
+# --- BROKEN SYMLINK CHECK ---
+# This has to happen before the robot is touched, because the cleanup
+# further down deletes anything on the robot that is not in the source
+# tree, and it decides that with [ -d ] and [ -f ]. Both follow symlinks,
+# so a link pointing at nothing is indistinguishable from a file that was
+# deliberately removed -- and the source tree is full of symlinks:
+# lib -> ../../nhs_lib, and inside that, arduino_alvik, qwiic_i2c and
+# qwiic_buzzer.py all point into libs_on_github.
+#
+# On 2026-09-04 those three submodules were not checked out. The sync
+# deleted the entire Alvik driver from a robot, reported success, and did
+# it again on the next run. There is no recovering a robot mid-class from
+# that, so this refuses to start instead.
+#
+# find -L follows links, which is what makes a broken one report as
+# type l. It also reaches links nested inside a linked directory, which
+# is exactly where these live.
+echo "🔗 Checking symlinks in '$SOURCE_DIR'..."
+BROKEN_LINKS=$(find -L "$SOURCE_DIR" -type l 2>/dev/null | sort)
+if [ -n "$BROKEN_LINKS" ]; then
+    echo "❌ ERROR: these symlinks point at nothing:"
+    echo "$BROKEN_LINKS" | sed 's/^/     /'
+    echo ""
+    echo "   Nothing on the robot was changed."
+    echo ""
+    echo "   The sync would read them as files you deleted and remove them"
+    echo "   from the robot. Usually this means a submodule is not checked"
+    echo "   out. From the repo root:"
+    echo ""
+    echo "       git submodule update --init --recursive"
+    echo ""
+    echo "   The objects are normally already in .git, so that works with"
+    echo "   no network -- which matters at school, where GitHub is blocked."
+    exit 1
+fi
+echo "   - all resolve"
 
 # --- AUTO-DETECT PORT ---
 if [ -z "$PORT" ]; then

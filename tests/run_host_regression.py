@@ -38,6 +38,17 @@ def main():
     runner.run_test("Host: Missing HuskyLens is not an error",
                     regression_host.test_missing_huskylens_is_not_an_error)
 
+    print("\n--- Running Robot Sync Tests ---")
+    import regression_initbot
+    runner.run_test("Sync: a broken symlink stops the run",
+                    regression_initbot.test_a_broken_symlink_stops_the_run)
+    runner.run_test("Sync: the error says how to fix it",
+                    regression_initbot.test_the_error_says_how_to_fix_it)
+    runner.run_test("Sync: a healthy tree is not blocked",
+                    regression_initbot.test_a_healthy_tree_is_not_blocked)
+    runner.run_test("Sync: the real source trees are intact",
+                    regression_initbot.test_the_real_source_trees_are_intact)
+
     print("\n--- Running Solution Tests (testbench) ---")
     import regression_solutions
     from run_solution_regression import TESTS as SOLUTION_TESTS

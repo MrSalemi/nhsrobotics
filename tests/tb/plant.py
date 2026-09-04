@@ -76,6 +76,7 @@ DEFAULT_DEFECTS = {
     "sensor_dead_ms": 0,        # sensors return None this long after boot
     "yaw_offset_deg": 0.0,      # where the IMU happens to start
     "oled_present": True,       # a loose OLED silently shows nothing
+    "max_speed_cms": 11.5,      # 70 RPM on a 34 mm wheel, after drive_scale
 }
 
 
@@ -111,6 +112,10 @@ class Plant:
         self._cmd_w = 0.0
         self._cmd_age_ms = 0
         self._braking_ms = 0
+
+        # What the wheels are actually doing, which trails the command.
+        self._delivered_v = 0.0
+        self._delivered_w = 0.0
 
         self.elapsed_ms = 0
         self.distance_travelled_cm = 0.0
@@ -157,6 +162,8 @@ class Plant:
         self._cmd_age_ms += dt_ms
         self._step_target(dt_ms)
 
+        scale = self.defects["drive_scale"]
+
         if self._braking_ms > 0:
             # Rolling to a stop: still moving, at a decaying rate.
             settle = self.defects["brake_settle_ms"] or 1
@@ -164,15 +171,39 @@ class Plant:
             self._braking_ms = max(0, self._braking_ms - dt_ms)
             if self._braking_ms == 0:
                 self._cmd_v = self._cmd_w = 0.0
+            self._delivered_v = self._cmd_v * scale * fraction
+            self._delivered_w = self._cmd_w * scale * fraction
         else:
-            fraction = 1.0
-            if self._cmd_age_ms < self.defects["drive_lag_ms"]:
-                fraction = 0.0
+            wanted_v = self._cmd_v * scale
+            wanted_w = self._cmd_w * scale
 
-        scale = self.defects["drive_scale"] * fraction
+            # The motors run out of RPM. Without this the sim happily
+            # accelerates forever, and a physics profile that saturates on
+            # the real floor passes every check here.
+            cap = self.defects.get("max_speed_cms")
+            if cap:
+                if wanted_v > cap:
+                    wanted_v = cap
+                elif wanted_v < -cap:
+                    wanted_v = -cap
+
+            # The base does not answer instantly. It slews toward a new
+            # setpoint with the measured 0.21 s time constant, so a HELD
+            # command loses about v * tau of distance getting going --
+            # which is what the startup lag measured on 2026-08-03 -- and
+            # a command that keeps CHANGING is followed with a lag instead
+            # of stalling outright. Modelling the lag as a dead stop after
+            # every change was fine while every project set a speed once,
+            # but it makes any ramp impossible, which is not what the
+            # measurement said.
+            tau_ms = self.defects["drive_lag_ms"]
+            alpha = min(1.0, float(dt_ms) / tau_ms) if tau_ms > 0 else 1.0
+            self._delivered_v += (wanted_v - self._delivered_v) * alpha
+            self._delivered_w += (wanted_w - self._delivered_w) * alpha
+
         seconds = dt_ms / 1000.0
-        self._advance_pose(self._cmd_v * scale * seconds,
-                           self._cmd_w * scale * seconds)
+        self._advance_pose(self._delivered_v * seconds,
+                           self._delivered_w * seconds)
 
     def _advance_pose(self, distance_cm, turn_deg):
         # Small enough steps that straight-line integration is fine; the

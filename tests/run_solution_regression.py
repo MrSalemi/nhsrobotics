@@ -24,6 +24,7 @@ for path in (HERE, os.path.join(REPO, "nhs_lib")):
 
 from regression_utils import RegressionRunner
 import regression_solutions as solutions
+import regression_accelerator as accelerator
 
 
 TESTS = [
@@ -67,6 +68,30 @@ TESTS = [
      solutions.test_line_survives_clock_rollover),
     ("Line: works with no screen", solutions.test_line_works_with_no_screen),
     ("Line: Cancel stops it", solutions.test_line_cancel_stops_it),
+
+    # Physics 1.8 -- init_bot/phy_robot/accelerator.py
+    ("Accel: UP matches the profile",
+     accelerator.test_up_matches_the_profile),
+    ("Accel: DOWN matches the profile",
+     accelerator.test_down_matches_the_profile),
+    ("Accel: immune to the drive() speed error",
+     accelerator.test_up_immune_to_the_speed_error),
+    ("Accel: the profile check has teeth",
+     accelerator.test_the_profile_check_has_teeth),
+    ("Accel: neither run brakes on a mark",
+     accelerator.test_neither_run_brakes_on_a_mark),
+    ("Accel: the robot is stopped between runs",
+     accelerator.test_the_robot_is_stopped_between_runs),
+    ("Accel: Cancel quits while blinking",
+     accelerator.test_cancel_while_blinking_quits),
+    ("Accel: Cancel quits during a run",
+     accelerator.test_cancel_during_a_run_quits),
+    ("Accel: lights go out at the end",
+     accelerator.test_lights_go_out_at_the_end),
+    ("Accel: drive() is not re-issued every pass",
+     accelerator.test_drive_is_not_re_issued_every_pass),
+    ("Accel: never asks for more than the robot has",
+     accelerator.test_it_never_asks_for_more_than_the_robot_has),
 ]
 
 
