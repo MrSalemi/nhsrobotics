@@ -291,6 +291,13 @@ the correction.
   `LINE_THRESHOLD` 150 is safer than 200 — it is 100 above paper, so it trips
   while the sensor is still at the EDGE of the tape rather than on it, which is
   what lets a small turn pull it back under.
+
+  **Neither number is in any file.** 2026-09-04: `LINE_THRESHOLD` is defined
+  nowhere in the repo — [DECISIONS #21](DECISIONS.md) settled 200, the
+  paragraph above prefers 150, and the parked `sol1x` does not set it. The
+  only live threshold on a line sensor is P09's `EDGE_THRESHOLD = 200`, which
+  is a different measurement on a different surface. Pick one when the
+  project comes back, and put it in the file.
 - **The spin starts one wheel at a time.** In `set_wheels_speed(S, -S)` the
   positive wheel moves first, so for that gap the robot pivots about the
   stationary wheel rather than the axle midpoint. Lands in the measured sweep.
@@ -369,8 +376,27 @@ per-robot state fails silently and differently on 24 shared robots, and gets
 stomped every time a student breaks `main.py`. If calibration ever belongs in the
 course it is a project, not plumbing.
 
+### Top speed
+
+**70 RPM on a 34 mm wheel is 12.46 cm/s**, from `MOTOR_MAX_RPM` and
+`WHEEL_DIAMETER_MM` in `robot_definitions.py`. `drive()` delivers 92.6% of
+what is asked, so the usable ceiling is **somewhere between 11.5 and 12.5
+cm/s** — which of those depends on whether the deficit applies before or
+after the motors run out of RPM, and that has not been measured. Treat 11.5
+as the safe number.
+
+This is what caps every physics activity: an accelerating run from rest
+covers at most **6.25 cm per second of runtime**, so distance is bought with
+time and nothing else. See [DECISIONS #49](DECISIONS.md).
+
 ### Still unmeasured
 
+- **How the base follows a *changing* speed setpoint.** The 0.21 s below is
+  a startup lag from standstill; nobody has watched the robot track a ramp.
+  `tests/tb/plant.py` now assumes a first-order response with that same time
+  constant — see [DECISIONS #51](DECISIONS.md) — and
+  `init_bot/phy_robot/accelerator.py` rests on it entirely. One bench run
+  settles it: command a ramp, log the pose.
 - **`rotate()` has never been tested.** Accuracy is inferred from `move()`.
   P04's WORK 3 depends on it.
 - **`drive()` with both arguments has never been tested.** Prediction: the curve
@@ -386,8 +412,20 @@ it. **Leave it alone.**
 
 ## Failures that don't announce themselves
 
+**A dangling symlink in a robot source tree deletes files off the robot.**
+`initialize_robot.sh` decides a remote file is stale with `[ -d ]` and
+`[ -f ]`, both of which follow links, so an unchecked-out submodule reads as
+"deleted on purpose". On 2026-09-04 that removed the whole Alvik driver from
+a robot and reported success. v31 refuses to start on a broken link —
+[DECISIONS #52](DECISIONS.md) — but the lesson generalises: **a symlink is a
+claim about something else, and a tool that resolves it cannot tell a broken
+promise from a deliberate absence.**
+
 **A flat controller battery.** A dying PS4/PS5 controller does not raise.
-`RobotController.update()` opens with `if not self.is_connected():
+~~`RobotController.update()`~~ — 2026-09-04: the class is `Controller`, in
+`nhs_lib/controller.py`. There is no `RobotController` anywhere in the repo
+and never was; the behaviour below is accurate, only the name was wrong.
+`Controller.update()` opens with `if not self.is_connected():
 self._reset_state()`, which zeroes every stick and clears every button, and the
 socket path catches `OSError` and calls `_close_ws()`. Nothing propagates. The
 symptom is a robot that quietly stops driving while everything else in the loop
@@ -414,7 +452,7 @@ theta and yaw are different sources, on the OLED with no cable) and
 `curve_pose_test.py` (measures `rotate()`, `drive()` with both arguments, and
 whether pose y survives a curve — **never run**), plus Ray's own
 `approach_box.py`, `capstone.py`, `capstone_student.py`, `face2d.py`,
-`rolling_superbot.py`, `state_approach.py`.
+`line_sensor_probe.py`, `rolling_superbot.py`, `state_approach.py`.
 
 Four programs an earlier handoff listed — `spin_rate_test.py`,
 `spin_ramp_test.py`, `straight_line_test.py`, `turn_sign_test.py` — are **not in
@@ -435,3 +473,21 @@ both runners.
 automatically. The script deletes anything on the robot that no longer exists
 locally, which clears stale old-numbered files. `-c` also wipes `/workspace` —
 safe only while no student work exists.
+
+**`-c` is also what resets `main.py`.** Without it the sync keeps whatever
+`main.py` is already on the robot, on purpose — from P04 on it is the
+student's file. So a change to the shipped `main.py` does not land unless
+`-c` is passed.
+
+**Four source trees, one library.** `init_bot/` holds `nhs_robot`,
+`phy_robot` and `eng_bot`, all three pointing `lib` at `../../nhs_lib`, plus
+the `factory_alivk` archive. Only `nhs_robot` also links `projects` and
+`tests`, so syncing `phy_robot` to a robot that was set up for robotics
+correctly removes the project scaffolds — and incidentally clears the
+stale `tests/tb` from that one robot.
+
+**v31 refuses to start on a broken symlink in the source tree** —
+[DECISIONS #52](DECISIONS.md). If it stops with a list of dead links, run
+`git submodule update --init --recursive` from the repo root. That works with
+no network, because the objects are already in `.git/modules`, which matters
+at school.

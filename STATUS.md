@@ -54,6 +54,15 @@ shared               the builder, reached from the vault by symlink
 Class Development    where -d deploys
 ```
 
+**`Classroom` is not `Class Development`.** Google Drive holds a separate
+`My Drive/Classroom`, and adding that one instead leaves a thread unable to
+deploy while everything looks mounted. On 2026-09-04 a thread spent several
+exchanges on this. If `ls` on the mount root shows `Classroom` and no
+`Class Development`, the wrong folder is in Context.
+
+A Context folder added mid-thread does not appear — the mount set is fixed
+when the session starts. Change it, then start a new thread.
+
 `shared` has to be its own entry. The vault reaches it through
 `shared -> ../shared`, and a symlink resolves only to something that is also
 mounted — mounts land side by side under one root, so `..` from inside the
@@ -96,6 +105,15 @@ command, instead of dying in a node stack trace.
 
 ## Current unit
 
+**This repo also carries the Physics and Engineering robot payloads.**
+`init_bot/` holds four source trees — `nhs_robot`, `phy_robot`, `eng_bot`
+and the `factory_alivk` archive — and all three live ones point `lib` at
+the same `../../nhs_lib`. So a physics program is built and synced from
+here even though the physics *course* lives in the `physics` vault. As of
+2026-09-04 `phy_robot` boots into `accelerator.py`, the lesson 1.8
+constant-acceleration activity; `marsRoverDrop.py` is still on the robot
+and is wanted later.
+
 **P00 First Lights is new, and P07-P09 have still never been run on a robot.**
 
 P00 was written 2026-08-29 as a day-one project that needs nothing but a USB
@@ -125,6 +143,38 @@ he has run the class. Do not spend design effort past P09, and do not use any
 P10+ project as an argument about P07-P09 — those slots may be rewritten or cut.
 
 ## What's done
+
+**2026-09-04 — the physics accelerator, and the sync stopped deleting the
+robot's driver.**
+
+- **`init_bot/phy_robot/accelerator.py` V01 is written and on one robot.**
+  Physics lesson 1.8: marks at 10/20/30/40/50 cm beside a metre stick, the
+  robot's own touch pads for UP, DOWN and CANCEL, no OLED, brake at 52 cm so
+  neither run stops on a mark somebody is timing. UP runs from rest at
+  +0.010 m/s², DOWN from 0.080 m/s at −0.005 m/s². Both numbers were forced
+  by the robot's top speed and by Ray's requirement that the two runs not be
+  mirrors — see [DECISIONS #49](DECISIONS.md). `phy_robot/main.py` now
+  imports it instead of `marsRoverDrop`.
+- **It steers on the pose rather than commanding speed.**
+  [DECISIONS #50](DECISIONS.md). Simulated times land within 0.09 s of the
+  profile at every mark, which is inside what a student can read.
+- **`tests/regression_accelerator.py`** — eleven checks, every one
+  mutation-tested, folded into `run_solution_regression.py` and therefore
+  into the host suite. Solution suite is 24 pass / 9 skip; host is 35 / 9.
+- **The testbench's model of the 0.21 s lag changed.**
+  [DECISIONS #51](DECISIONS.md). It used to stop the robot dead for 210 ms
+  after *any* command change, which makes a ramp impossible. It now slews.
+  `plant.py` also gained a `max_speed_cms` knob, because without one the sim
+  accelerates forever and a profile that saturates on the real floor passes
+  every check.
+- **`initialize_robot.sh` is v31 and refuses to run on a broken symlink.**
+  [DECISIONS #52](DECISIONS.md). Its banner also said v29 while the header
+  said v30; fixed. Four laptop-side checks in
+  `tests/regression_initbot.py`, one of which reads the three real source
+  trees as they sit on disk.
+
+**Nobody has run `accelerator.py` on the floor.** Everything above is
+simulated.
 
 **2026-08-29 — the builder stopped being a submodule, and the guides got their
 fonts and spacing settled.** A long session; the detail is in DECISIONS #45 and
@@ -278,6 +328,44 @@ to 1.2 after comparing rendered pages, which gave back four sheets a student and
 reads better. See [DECISIONS #46](DECISIONS.md).
 
 ## What's open
+
+**`accelerator.py` has never been run on a robot**
+
+Sim only. Put it beside the metre stick at full charge and again at half,
+since the ceiling moves with the battery. The tell for trouble is the UP
+run's last two marks coming in late while the early ones are fine — that is
+the speed ceiling, and 0.010 has to come down. Each run prints its own mark
+times over USB, so the robot can be checked against a stopwatch.
+
+**Physics 1.8 is only half specified**
+
+Ray's note covered the two runs. How a student controls the change from
+forward to backward was parked, deliberately, and the program answers it the
+simplest way: two buttons, one run each, and the robot has to be carried
+back. Nobody has said that is the procedure they want.
+
+**How the Alvik follows a *changing* speed setpoint has never been measured**
+
+Every number in `accelerator.py` rests on it, and the testbench now assumes
+a first-order response with a 0.21 s time constant
+([DECISIONS #51](DECISIONS.md)). The measured 0.21 s was a startup lag from
+standstill; nobody has watched the base track a ramp. This is the single
+thing most likely to make the real robot miss the printed times.
+
+**The real top speed is somewhere between 11.5 and 12.5 cm/s**
+
+70 RPM on a 34 mm wheel is 12.46 cm/s, and `drive()` delivers 92.6% of what
+you ask, but whether the deficit applies before or after the motors run out
+of RPM is unknown. Both accelerator runs stay under 10.2 cm/s so that it does
+not matter. Anything faster needs the measurement first.
+
+**Submodule checkout is a live hazard on both machines**
+
+`nhs_lib/arduino_alvik`, `nhs_lib/qwiic_i2c` and `nhs_lib/qwiic_buzzer.py`
+are symlinks into `libs_on_github/`. With those submodules not checked out,
+they dangle. The school Mac was repaired on 2026-09-04; the home Mac has not
+been checked. `git submodule update --init --recursive` works with no
+network, since the objects are already in `.git/modules`.
 
 **The other four vaults have not had the font and spacing change deployed**
 

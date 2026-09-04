@@ -530,3 +530,139 @@ noted, a decision affects both repos.
     maintained. Leaving `preflight.sh` as a documented manual step was the first
     version of this and was rejected on the same grounds as the hook wiring.
     — 2026-08-30
+
+49. **Physics 1.8 runs at +0.010 and −0.005 m/s², and the two runs are
+    deliberately not mirrors.** *(affects `init_bot/phy_robot` and the
+    `physics` vault's lesson 1.8.)*
+
+    Ray's first sketch was +0.2 m/s² measured at t = 1, 2, 3 s, and a second
+    robot at −0.1 from 0.4 m/s. None of it is reachable. **70 RPM on a 34 mm
+    wheel is 0.125 m/s**, so constant 0.2 m/s² runs out of speed at 0.62 s,
+    and t = 1 s alone would need 1.6× flat out. The 0.4 m/s start is 3.2×.
+
+    What the robot's speed actually buys, in one line: **an accelerating run
+    covers at most 6.25 cm per second of runtime.** Distance is therefore
+    bought with time, and the 1 : 4 : 9 ratio that is the whole point of the
+    lesson holds at any acceleration — so the fix is to scale the number
+    down, not to redesign the activity.
+
+    Settled: marks at 10, 20, 30, 40, 50 cm beside a metre stick, timed in
+    both directions. UP from rest at +0.010; DOWN from 0.080 m/s at −0.005.
+    Times 4.5/6.3/7.7/8.9/10.0 s and 1.3/2.7/4.3/6.2/8.5 s.
+
+    **Both magnitudes were chosen against constraints, not for neatness.**
+    +0.010 peaks at 0.100 m/s at the last mark, 87% of the ceiling, so a
+    half-charged battery cannot flatten it. −0.005 is still doing 0.037 m/s
+    crossing the last mark, about double the speed at which the motors go
+    mushy — a decelerating run that reaches zero on a mark produces a
+    plausible, wrong reading, which is worse than an obvious failure. The
+    closest pair of times at any shared mark is 1.5 s apart, fifteen times a
+    student's 0.1 s precision.
+
+    **Not mirrors, on Ray's instruction.** ±0.010 would have made run 2 the
+    exact time-reverse of run 1 — every reading ten seconds minus the other —
+    which is elegant and lets a student shortcut the second run entirely. The
+    2× difference removes that. Both are still parabolas, which is the
+    lesson; one curves up and one curves down.
+
+    **Paths not taken.** Keeping +0.0125 (Ray's own pick, and better numbers)
+    puts the 50 cm mark at 0.112 m/s, 97% of theoretical top speed, with the
+    real ceiling unknown. Keeping the runs at equal magnitude was rejected
+    above. Reaching zero velocity at the last mark was rejected because the
+    final centimetres are the least trustworthy part of the run.
+    — 2026-09-04
+
+50. **The physics accelerator steers on the pose. It does not command
+    speed.** *(affects `init_bot/phy_robot/accelerator.py`.)*
+
+    `drive()` delivers about 92.6% of the speed asked for and takes 0.21 s to
+    answer, so a program that commands `a * t` open-loop is 8% slow with a
+    dead patch at the start — worst exactly where t is small and a student's
+    relative error is already largest. Each pass the program instead computes
+    where the profile says it should be, reads the pose to see where it is,
+    and corrects. Distance against time is then right by construction, and
+    that is the only quantity anybody measures.
+
+    This is the opposite of REFERENCE's standing ruling that students never
+    see the velocity error and `nhs_lib` never compensates for it. That ruling
+    is about the robotics course, where the error is hidden by project design
+    and tuning absorbs it. A physics activity prints the acceleration on the
+    worksheet, so the number has to be true. The compensation lives in the
+    physics program, not in `nhs_lib`, so nothing about robotics changes.
+
+    The correction is proportional, at 10 Hz, clamped to 11.5 cm/s. 10 Hz and
+    not every pass because of [#20](DECISIONS.md) — flooding the link to the
+    STM32 stops the robot listening.
+
+    **Paths not taken.** Dividing the command by 0.926 by hand fixes the
+    scale but not the startup lag, and pins a measured constant into a
+    student-facing program. A rolling start for the DOWN run was built and
+    then removed: the base answers in about 0.2 s and the first mark is not
+    until 1.3 s, so the correction absorbs a standing start on its own, and
+    one timing procedure beats two. `PREROLL_CM` is still there, at zero, if
+    hardware disagrees. — 2026-09-04
+
+51. **The testbench models the 0.21 s lag as a slew toward the new speed,
+    not a dead stop after every command change.** *(affects `tests/tb`, and
+    therefore every project the suite scores.)*
+
+    `plant.py` used to deliver nothing at all for 210 ms after any change of
+    command. That was invisible while every project set a speed once and held
+    it, and it makes a ramp *impossible* — a command that changes every
+    100 ms means the robot never moves, at all, forever. Measured against
+    that model the accelerator looked broken when it was the model that was.
+
+    The 0.21 s in REFERENCE was a startup lag from standstill. Nobody
+    measured the base tracking a changing setpoint, and reading a
+    from-rest measurement as "a full stall after every change" was an
+    assumption, not data. It now approaches the commanded speed with the same
+    0.21 s time constant, so a **held** command still loses about `v * tau`
+    of distance getting going — which is what was actually measured — while a
+    changing one is followed with a lag. Every existing check passes
+    unchanged.
+
+    `plant.py` also gained **`max_speed_cms`**, defaulting to 11.5. Without a
+    ceiling the sim accelerates forever, so a profile that saturates on the
+    real floor passes every check — the same shape of failure as a test suite
+    that cannot see a page.
+
+    **This is a model of measured hardware that is now partly assumed, and
+    that is a debt.** One bench run — command a ramp, log the pose — settles
+    it. Until then the accelerator's numbers rest on the assumption.
+    — 2026-09-04
+
+52. **`initialize_robot.sh` refuses to run when a symlink in the source tree
+    points at nothing.** *(affects `init_bot`, and every robot.)*
+
+    The cleanup deletes anything on the robot that is not in the source tree,
+    and decides that with `[ -d ]` and `[ -f ]`. Both follow symlinks, so a
+    link pointing at nothing is indistinguishable from a file somebody
+    deleted on purpose — and the source trees are mostly symlinks:
+    `lib -> ../../nhs_lib`, and inside that, `arduino_alvik`, `qwiic_i2c` and
+    `qwiic_buzzer.py` all point into `libs_on_github/`.
+
+    On 2026-09-04 those three submodules were not checked out. The sync
+    deleted the **entire Alvik driver** off a robot, printed a tick, and did
+    it again on the next run. A robot in that state cannot import
+    `arduino_alvik`, so nothing runs at all, and there is no diagnosing it
+    mid-class from a success message.
+
+    `find -L … -type l` is the check, because following links is what makes a
+    broken one report as a link, and it reaches links nested inside a linked
+    directory — which is exactly where these live. It runs before the port is
+    even detected, so a bad tree cannot touch a robot. The error names each
+    dead link and gives the repair, including that it needs no network, which
+    matters at school where GitHub is blocked.
+
+    Four checks in `tests/regression_initbot.py`. The important one replaces
+    `mpremote` with a stub and fails if it is called at all: a guard that
+    fires *after* the deletion loop would satisfy a weaker test and protect
+    nothing. Another reads the three real source trees as they sit on disk,
+    and fails on a machine whose submodules are not checked out — which is
+    the check that would have caught this before a robot was plugged in.
+
+    **Paths not taken.** Making the cleanup treat a dangling link as "leave
+    it alone" would let a genuinely deleted file live on the robot forever,
+    and quietly. `.robotignore` cannot help: a whitelisted path is one the
+    loop preserves, so naming the libraries there would protect a stale copy
+    instead of shipping the right one. — 2026-09-04
