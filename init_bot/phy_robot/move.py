@@ -1,5 +1,5 @@
 # move.py
-# Version: V01
+# Version: V02
 #
 # Straight-line motion for physics, in three modes, on the floor beside a
 # metre stick. Students read the robot's position off the stick at 1, 2, 3,
@@ -52,7 +52,27 @@
 #
 #   solid       picking a mode. Left and right change it, OK locks it in.
 #   blinking    locked and waiting. Press up or down to run.
-#   dark        running.
+#   dark        counting down, or running. Watch the Nano LED instead.
+#
+# THE COUNTDOWN, AND WHY IT EXISTS
+#
+# An accelerating robot is invisible for its first half second -- at
+# 1.5 cm/s^2 it has moved 2 mm -- so there is nothing to see that says
+# "now". Students were guessing when to start the clock.
+#
+# Making the acceleration bigger does not help. Distance goes as t^2, so
+# the robot creeps away from a standstill at any acceleration, and the
+# ceiling caps this one near 1.75 cm/s^2 anyway. It is a signalling
+# problem, not a motion problem.
+#
+# So the Nano LED flashes three times, one a second, and then comes on and
+# STAYS on at the instant the robot starts. Three flashes and a hold, like
+# a race start: a single edge would still cost each student their reaction
+# time, and at one second a 0.2 s reaction is a quarter of the reading.
+# A light coming on is also far easier to catch than one going off, which
+# is all the main LEDs could offer.
+#
+# The Nano LED going out at the end marks the stop.
 #
 # The teacher picks the mode when setting up the station. Once OK is
 # pressed the mode is fixed, and the only way back is to restart the robot.
@@ -130,6 +150,15 @@ SETTLE_MS = 600
 
 BLINK_MS = 250
 
+# The countdown. Three flashes a second apart, then the light holds and the
+# robot goes on the fourth beat.
+COUNTDOWN_FLASHES = 3
+COUNTDOWN_BEAT_MS = 1000
+COUNTDOWN_FLASH_MS = 300
+
+# The Nano LED is 8-bit per channel, unlike the Alvik's own lights.
+GO_RGB = (255, 255, 255)
+
 
 def show(color):
     sb.light_both_leds(color[0], color[1], color[2])
@@ -198,6 +227,35 @@ def wait_to_run(mode):
         sleep_ms(20)
 
 
+def wait_a_beat(already_waited_ms):
+    """Rest of one countdown beat, still watching Cancel."""
+    waited = already_waited_ms
+    while waited < COUNTDOWN_BEAT_MS:
+        if sb.held('cancel'):
+            return False
+        sleep_ms(20)
+        waited += 20
+    return True
+
+
+def countdown():
+    """Three flashes on the Nano LED. Returns False on Cancel.
+
+    The run starts on the beat after the third flash, so the students get
+    a whole second of warning with nothing happening -- which is the
+    point. Anticipating the start is what removes their reaction time.
+    """
+    for _ in range(COUNTDOWN_FLASHES):
+        if sb.held('cancel'):
+            return False
+        sb.nano_led.set_rgb(GO_RGB[0], GO_RGB[1], GO_RGB[2])
+        sleep_ms(COUNTDOWN_FLASH_MS)
+        sb.nano_led.off()
+        if not wait_a_beat(COUNTDOWN_FLASH_MS):
+            return False
+    return True
+
+
 def do_run(mode, direction):
     """One six-second run. Returns False if Cancel was pressed.
 
@@ -207,8 +265,14 @@ def do_run(mode, direction):
     v0, accel = mode[direction]
     heading = 1 if direction == 'up' else -1
 
-    show((0, 0, 0))                 # dark means running
+    show((0, 0, 0))                 # the run is committed; watch the Nano
+    if not countdown():
+        return False
+
     alvik.reset_pose(0, 0, 0)
+    # On and held: this edge is the students' start signal, and it has to
+    # be the same instant the robot starts moving.
+    sb.nano_led.set_rgb(GO_RGB[0], GO_RGB[1], GO_RGB[2])
     started = ticks_ms()
     readings = []
     next_reading = 0
@@ -244,6 +308,7 @@ def do_run(mode, direction):
         sleep_ms(UPDATE_MS)
 
     alvik.brake()
+    sb.nano_led.off()               # out means stopped
     sleep_ms(SETTLE_MS)
 
     print(mode["name"], direction, "run:")

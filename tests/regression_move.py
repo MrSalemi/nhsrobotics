@@ -156,10 +156,18 @@ def _run(presses, cancel_at_ms, defects=None):
     return env, plant
 
 
+# Pressing an arrow does not start the run: three countdown flashes come
+# first, one a second, and the robot goes on the fourth beat.
+COUNTDOWN_MS = 3000
+RUN_MS = 6500
+SETTLE_MS = 600
+WHOLE_RUN_MS = COUNTDOWN_MS + RUN_MS + SETTLE_MS
+
+
 def _drive_one(mode_name, arrow, defects=None, run_at_ms=2000):
     """Select a mode, do one run with one arrow, then quit."""
     presses, cancel = _select(mode_name, [(arrow, run_at_ms)],
-                              run_at_ms + 12000)
+                              run_at_ms + WHOLE_RUN_MS + 2000)
     return _run(presses, cancel, defects=defects)
 
 
@@ -420,7 +428,8 @@ def test_it_goes_back_to_waiting_after_a_run():
     if not _have_dut():
         return 2, "move.py not present"
     presses, cancel = _select("CONSTANT",
-                              [("up", 2000), ("down", 10000)], 20000)
+                              [("up", 2000), ("down", 2000 + WHOLE_RUN_MS + 500)],
+                              2000 + 2 * WHOLE_RUN_MS + 4000)
     env, plant = _run(presses, cancel)
     if not env.result.ok:
         return 0, "DUT raised: %r" % (env.result.error,)
@@ -469,7 +478,7 @@ def test_cancel_quits_during_a_run():
     if not _have_dut():
         return 2, "move.py not present"
     presses, _ = _select("CONSTANT", [("up", 2000)], None)
-    env, plant = _run(presses, 4000)
+    env, plant = _run(presses, 2000 + COUNTDOWN_MS + 2000)
     if not env.result.ok:
         return 0, "DUT raised: %r" % (env.result.error,)
     if env.result.watchdog:
@@ -499,6 +508,123 @@ def test_the_lights_go_out_at_the_end():
     nano = env.monitor.of("nano_led")
     if nano and any(nano[-1][2][0]):
         return 0, "Nano LED left on"
+    return 1, ""
+
+
+# --------------------------------------------------------------------------
+# The countdown
+# --------------------------------------------------------------------------
+
+def _nano_events(env):
+    """(stamp, rgb) for every change of the Nano LED."""
+    return [(stamp, args[0]) for stamp, kind, args
+            in env.monitor.transactions if kind == "nano_led"]
+
+
+def _nano_state_at(env, when_ms):
+    state = None
+    for stamp, rgb in _nano_events(env):
+        if stamp <= when_ms:
+            state = rgb
+    return state
+
+
+def test_the_countdown_flashes_three_times():
+    """Three flashes before the robot moves, then a fourth that holds.
+
+    The flashes are the whole reason the countdown exists: an
+    accelerating robot is invisible for its first half second, so the
+    start has to be announced rather than watched for.
+    """
+    if not _have_dut():
+        return 2, "move.py not present"
+    env, plant = _drive_one("ACCELERATE", "up")
+    if not env.result.ok:
+        return 0, "DUT raised: %r" % (env.result.error,)
+
+    drives = env.monitor.of("drive")
+    if not drives:
+        return 0, "the robot never drove"
+    first_drive = drives[0][0]
+
+    lit_before = [stamp for stamp, rgb in _nano_events(env)
+                  if any(rgb) and stamp < first_drive]
+    if len(lit_before) != 3:
+        return 0, ("%d flashes before the robot moved, wanted 3"
+                   % len(lit_before))
+
+    # A second apart, give or take the loop's own granularity.
+    gaps = [lit_before[i + 1] - lit_before[i]
+            for i in range(len(lit_before) - 1)]
+    if any(abs(gap - 1000) > 150 for gap in gaps):
+        return 0, "flashes were %s ms apart, wanted about 1000" % gaps
+    return 1, ""
+
+
+def test_the_robot_does_not_move_during_the_countdown():
+    """A robot that creeps during the count makes the count a lie."""
+    if not _have_dut():
+        return 2, "move.py not present"
+    env, plant = _drive_one("CONSTANT", "up", run_at_ms=2000)
+    if not env.result.ok:
+        return 0, "DUT raised: %r" % (env.result.error,)
+    moved = plant.distance_at(
+        [(0.0, cm) for _ms, cm in plant.trace
+         if _ms <= 2000 + COUNTDOWN_MS - 200], 0.0)
+    if moved > 0.5:
+        return 0, "moved %.1f cm before the countdown finished" % moved
+    return 1, ""
+
+
+def test_the_go_light_holds_through_the_run():
+    """On at the start, on all the way, out at the stop.
+
+    A flash at t=0 would be a start signal too, but the light staying on
+    is also what says "still running" to somebody who looked away.
+    """
+    if not _have_dut():
+        return 2, "move.py not present"
+    env, plant = _drive_one("CONSTANT", "up", run_at_ms=2000)
+    if not env.result.ok:
+        return 0, "DUT raised: %r" % (env.result.error,)
+
+    start = 2000 + COUNTDOWN_MS
+    for probe in (start + 500, start + 3000, start + RUN_MS - 500):
+        state = _nano_state_at(env, probe)
+        if not state or not any(state):
+            return 0, ("the go light was %s at %d ms, part way through the "
+                       "run" % (state, probe))
+
+    # Out when the run ends, and out THEN -- not merely off by the time
+    # the program exits, which the finally block would arrange anyway.
+    after = 2000 + WHOLE_RUN_MS + 400
+    state = _nano_state_at(env, after)
+    if state and any(state):
+        return 0, ("the go light was still %s at %d ms, after the run had "
+                   "finished and the robot was waiting again"
+                   % (state, after))
+
+    events = _nano_events(env)
+    if not events or any(events[-1][1]):
+        return 0, "the light was left on at the end"
+    return 1, ""
+
+
+def test_cancel_during_the_countdown_aborts():
+    """Cancel between the flashes ends the program and never moves."""
+    if not _have_dut():
+        return 2, "move.py not present"
+    presses, _ = _select("CONSTANT", [("up", 2000)], None)
+    env, plant = _run(presses, 3500)
+    if not env.result.ok:
+        return 0, "DUT raised: %r" % (env.result.error,)
+    if env.result.watchdog:
+        return 0, "Cancel during the countdown did not end the program"
+    if plant.distance_travelled_cm > 0.5:
+        return 0, ("moved %.1f cm after Cancel during the countdown"
+                   % plant.distance_travelled_cm)
+    if not env.monitor.saw("stop"):
+        return 0, "the finally block never called alvik.stop()"
     return 1, ""
 
 
