@@ -65,7 +65,7 @@
 # ceiling caps this one near 1.75 cm/s^2 anyway. It is a signalling
 # problem, not a motion problem.
 #
-# So the Nano LED flashes three times, one a second, and then comes on and
+# So the Nano LED flashes three times on a steady beat, then comes on and
 # STAYS on at the instant the robot starts. Three flashes and a hold, like
 # a race start: a single edge would still cost each student their reaction
 # time, and at one second a 0.2 s reaction is a quarter of the reading.
@@ -150,11 +150,12 @@ SETTLE_MS = 600
 
 BLINK_MS = 250
 
-# The countdown. Three flashes a second apart, then the light holds and the
-# robot goes on the fourth beat.
+# The countdown. Three flashes, then the light holds and the robot goes on
+# the fourth beat. The beat is the tempo a class can count along with --
+# a second was too slow to feel like a countdown.
 COUNTDOWN_FLASHES = 3
-COUNTDOWN_BEAT_MS = 1000
-COUNTDOWN_FLASH_MS = 300
+COUNTDOWN_BEAT_MS = 600
+COUNTDOWN_FLASH_MS = 200
 
 # The Nano LED is 8-bit per channel, unlike the Alvik's own lights.
 GO_RGB = (255, 255, 255)
@@ -227,33 +228,49 @@ def wait_to_run(mode):
         sleep_ms(20)
 
 
-def wait_a_beat(already_waited_ms):
-    """Rest of one countdown beat, still watching Cancel."""
-    waited = already_waited_ms
-    while waited < COUNTDOWN_BEAT_MS:
+def hold_until(origin, due_ms):
+    """Wait until due_ms after origin. Returns False on Cancel.
+
+    Works to a DEADLINE, not by adding up sleeps. Reading a touch pad
+    goes over I2C to the STM32 and is not free, so a loop that counts
+    "twenty more milliseconds" thirty times runs long by however much
+    those reads cost -- and it runs long on every beat, so the error
+    piles up across the countdown. Measuring from a fixed origin absorbs
+    the latency instead of accumulating it.
+    """
+    while ticks_diff(ticks_ms(), origin) < due_ms:
         if sb.held('cancel'):
             return False
-        sleep_ms(20)
-        waited += 20
+        sleep_ms(10)
     return True
 
 
 def countdown():
-    """Three flashes on the Nano LED. Returns False on Cancel.
+    """Three flashes, then the go. Returns False on Cancel.
 
-    The run starts on the beat after the third flash, so the students get
-    a whole second of warning with nothing happening -- which is the
-    point. Anticipating the start is what removes their reaction time.
+    Four evenly spaced events -- flash, flash, flash, go -- and the run
+    starts on the fourth. The even spacing is the whole value: it lets a
+    student anticipate the start instead of reacting to it, and reacting
+    is what costs them a fifth of the first reading.
+
+    Every wait is to an absolute deadline measured from one origin. Adding
+    up sleeps instead runs each beat long by whatever the touch reads
+    cost, and that error compounds -- on the robot it made the beat 723 ms
+    instead of 600 and the fourth flash the worst of the four.
     """
-    for _ in range(COUNTDOWN_FLASHES):
-        if sb.held('cancel'):
+    origin = ticks_ms()
+
+    for beat in range(COUNTDOWN_FLASHES):
+        due = beat * COUNTDOWN_BEAT_MS
+        if not hold_until(origin, due):
             return False
         sb.nano_led.set_rgb(GO_RGB[0], GO_RGB[1], GO_RGB[2])
-        sleep_ms(COUNTDOWN_FLASH_MS)
-        sb.nano_led.off()
-        if not wait_a_beat(COUNTDOWN_FLASH_MS):
+        if not hold_until(origin, due + COUNTDOWN_FLASH_MS):
             return False
-    return True
+        sb.nano_led.off()
+
+    # The go beat, one full beat after the last flash began.
+    return hold_until(origin, COUNTDOWN_FLASHES * COUNTDOWN_BEAT_MS)
 
 
 def do_run(mode, direction):
@@ -266,12 +283,18 @@ def do_run(mode, direction):
     heading = 1 if direction == 'up' else -1
 
     show((0, 0, 0))                 # the run is committed; watch the Nano
+
+    # Zero the pose BEFORE the countdown. reset_pose() is a round trip to
+    # the STM32, and anywhere after the last flash it delays the go light
+    # by however long that takes -- which read as a fourth beat arriving
+    # late. Nothing slow may sit between the countdown and the go.
+    alvik.reset_pose(0, 0, 0)
+
     if not countdown():
         return False
 
-    alvik.reset_pose(0, 0, 0)
-    # On and held: this edge is the students' start signal, and it has to
-    # be the same instant the robot starts moving.
+    # On and held. This edge is the students' start signal and it has to be
+    # the same instant the clock starts.
     sb.nano_led.set_rgb(GO_RGB[0], GO_RGB[1], GO_RGB[2])
     started = ticks_ms()
     readings = []

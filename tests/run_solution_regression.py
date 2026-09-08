@@ -92,6 +92,8 @@ TESTS = [
      move.test_the_lights_say_which_state_it_is_in),
     ("Move: the countdown flashes three times",
      move.test_the_countdown_flashes_three_times),
+    ("Move: the beat holds when reads cost time",
+     move.test_the_beat_holds_when_reads_cost_time),
     ("Move: the robot does not move during the countdown",
      move.test_the_robot_does_not_move_during_the_countdown),
     ("Move: the go light holds through the run",

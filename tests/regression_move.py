@@ -103,6 +103,15 @@ class SamplingPlant(Plant):
             found = distance
         return found
 
+    def distance_at_ms(self, when_ms):
+        """Total distance travelled as of a session timestamp."""
+        found = 0.0
+        for stamp, distance in self.trace:
+            if stamp > when_ms:
+                break
+            found = distance
+        return found
+
 
 class Script:
     """Presses buttons on a timetable.
@@ -157,8 +166,10 @@ def _run(presses, cancel_at_ms, defects=None):
 
 
 # Pressing an arrow does not start the run: three countdown flashes come
-# first, one a second, and the robot goes on the fourth beat.
-COUNTDOWN_MS = 3000
+# first, on a steady beat, and the robot goes on the fourth.
+COUNTDOWN_FLASHES = 3
+COUNTDOWN_BEAT_MS = 600
+COUNTDOWN_MS = COUNTDOWN_FLASHES * COUNTDOWN_BEAT_MS
 RUN_MS = 6500
 SETTLE_MS = 600
 WHOLE_RUN_MS = COUNTDOWN_MS + RUN_MS + SETTLE_MS
@@ -171,18 +182,58 @@ def _drive_one(mode_name, arrow, defects=None, run_at_ms=2000):
     return _run(presses, cancel, defects=defects)
 
 
-def _check_readings(plant, mode_name, arrow, run_index=0):
+def _nano_events(env):
+    """(stamp, rgb) for every change of the Nano LED."""
+    return [(stamp, args[0]) for stamp, kind, args
+            in env.monitor.transactions if kind == "nano_led"]
+
+
+def _go_moments(env):
+    """When each run actually started, in session milliseconds.
+
+    t = 0 is the moment the go light comes on and HOLDS -- that is the
+    program's contract with the students, and since reset_pose() now
+    happens before the countdown it is no longer a marker for anything.
+    A countdown flash is an on followed by an off within a beat; the go
+    is an on that stays on.
+    """
+    events = _nano_events(env)
+    gos = []
+    for index, (stamp, rgb) in enumerate(events):
+        if not any(rgb):
+            continue
+        off = None
+        for later_stamp, later_rgb in events[index + 1:]:
+            if not any(later_rgb):
+                off = later_stamp
+                break
+        if off is None or off - stamp > 2 * COUNTDOWN_BEAT_MS:
+            gos.append(stamp)
+    return gos
+
+
+def _readings_of(env, plant, run_index=0):
+    """(seconds, cm) at each reading time of one run."""
+    gos = _go_moments(env)
+    if len(gos) <= run_index:
+        return None
+    start_ms = gos[run_index]
+    start_cm = plant.distance_at_ms(start_ms)
+    return [(seconds,
+             plant.distance_at_ms(start_ms + int(seconds * 1000)) - start_cm)
+            for seconds in READINGS]
+
+
+def _check_readings(env, plant, mode_name, arrow, run_index=0):
     profile = PROFILES[(mode_name, arrow)]
-    runs = plant.runs()
-    if len(runs) <= run_index:
+    taken = _readings_of(env, plant, run_index)
+    if taken is None:
         return 0, "the program never started run %d" % (run_index + 1)
-    run = runs[run_index]
-    if not run:
-        return 0, "run %d has no trace" % (run_index + 1)
+    measured = dict(taken)
 
     for seconds in READINGS:
         want = _expected_cm(profile, seconds)
-        got = plant.distance_at(run, seconds)
+        got = measured[seconds]
         allowed = (FIRST_READING_TOLERANCE_CM if seconds == READINGS[0]
                    else TOLERANCE_CM)
         if abs(got - want) > allowed:
@@ -204,7 +255,7 @@ def test_constant_holds_its_speed():
     env, plant = _drive_one("CONSTANT", "up")
     if not env.result.ok:
         return 0, "DUT raised: %r" % (env.result.error,)
-    return _check_readings(plant, "CONSTANT", "up")
+    return _check_readings(env, plant, "CONSTANT", "up")
 
 
 def test_accelerate_forwards_matches_the_profile():
@@ -214,7 +265,7 @@ def test_accelerate_forwards_matches_the_profile():
     env, plant = _drive_one("ACCELERATE", "up")
     if not env.result.ok:
         return 0, "DUT raised: %r" % (env.result.error,)
-    return _check_readings(plant, "ACCELERATE", "up")
+    return _check_readings(env, plant, "ACCELERATE", "up")
 
 
 def test_accelerate_backwards_slows_down():
@@ -224,7 +275,7 @@ def test_accelerate_backwards_slows_down():
     env, plant = _drive_one("ACCELERATE", "down")
     if not env.result.ok:
         return 0, "DUT raised: %r" % (env.result.error,)
-    return _check_readings(plant, "ACCELERATE", "down")
+    return _check_readings(env, plant, "ACCELERATE", "down")
 
 
 def test_stopped_does_not_move():
@@ -284,7 +335,7 @@ def test_right_steps_forwards_through_the_modes():
         env, plant = _drive_one(mode_name, "up")
         if not env.result.ok:
             return 0, "%s raised: %r" % (mode_name, env.result.error)
-        status, message = _check_readings(plant, mode_name, "up")
+        status, message = _check_readings(env, plant, mode_name, "up")
         if status == 0:
             return 0, "walking to %s: %s" % (mode_name, message)
     return 1, ""
@@ -303,7 +354,7 @@ def test_left_steps_backwards_and_wraps():
     env, plant = _run(presses, 14000)
     if not env.result.ok:
         return 0, "DUT raised: %r" % (env.result.error,)
-    return _check_readings(plant, "ACCELERATE", "up")
+    return _check_readings(env, plant, "ACCELERATE", "up")
 
 
 def test_the_arrows_do_nothing_before_ok():
@@ -319,7 +370,7 @@ def test_the_arrows_do_nothing_before_ok():
     if len(runs) != 1:
         return 0, ("%d runs happened; the two presses before OK should have "
                    "been ignored" % len(runs))
-    return _check_readings(plant, "CONSTANT", "up")
+    return _check_readings(env, plant, "CONSTANT", "up")
 
 
 def test_the_mode_cannot_change_after_ok():
@@ -336,7 +387,7 @@ def test_the_mode_cannot_change_after_ok():
     env, plant = _run(presses, 15000)
     if not env.result.ok:
         return 0, "DUT raised: %r" % (env.result.error,)
-    return _check_readings(plant, "CONSTANT", "up")
+    return _check_readings(env, plant, "CONSTANT", "up")
 
 
 # --------------------------------------------------------------------------
@@ -407,17 +458,16 @@ def test_a_run_lasts_six_and_a_half_seconds():
     env, plant = _drive_one("CONSTANT", "up")
     if not env.result.ok:
         return 0, "DUT raised: %r" % (env.result.error,)
-    runs = plant.runs()
-    if not runs:
+    gos = _go_moments(env)
+    if not gos:
         return 0, "no run happened"
-    # The trace ends when the next run starts or the session does, so
-    # measure to the brake instead.
     brakes = env.monitor.of("brake")
     if not brakes:
         return 0, "never braked"
 
-    start_ms = plant.clock_restarts[0][0]
-    length_s = (brakes[0][0] - start_ms) / 1000.0
+    # From the go light to the brake. Measuring from reset_pose() would
+    # include the countdown, which is not part of the run.
+    length_s = (brakes[0][0] - gos[0]) / 1000.0
     if abs(length_s - 6.5) > 0.3:
         return 0, "the run lasted %.2f s, not 6.5" % length_s
     return 1, ""
@@ -437,7 +487,7 @@ def test_it_goes_back_to_waiting_after_a_run():
     if len(runs) < 2:
         return 0, ("only %d run(s); it never returned to waiting"
                    % len(runs))
-    return _check_readings(plant, "CONSTANT", "down", run_index=1)
+    return _check_readings(env, plant, "CONSTANT", "down", run_index=1)
 
 
 def test_an_arrow_during_a_run_is_ignored():
@@ -454,7 +504,7 @@ def test_an_arrow_during_a_run_is_ignored():
     if len(runs) != 1:
         return 0, ("%d runs happened; presses during a run should be "
                    "ignored" % len(runs))
-    return _check_readings(plant, "CONSTANT", "up")
+    return _check_readings(env, plant, "CONSTANT", "up")
 
 
 def test_cancel_quits_from_selection():
@@ -515,12 +565,6 @@ def test_the_lights_go_out_at_the_end():
 # The countdown
 # --------------------------------------------------------------------------
 
-def _nano_events(env):
-    """(stamp, rgb) for every change of the Nano LED."""
-    return [(stamp, args[0]) for stamp, kind, args
-            in env.monitor.transactions if kind == "nano_led"]
-
-
 def _nano_state_at(env, when_ms):
     state = None
     for stamp, rgb in _nano_events(env):
@@ -549,15 +593,65 @@ def test_the_countdown_flashes_three_times():
 
     lit_before = [stamp for stamp, rgb in _nano_events(env)
                   if any(rgb) and stamp < first_drive]
-    if len(lit_before) != 3:
-        return 0, ("%d flashes before the robot moved, wanted 3"
-                   % len(lit_before))
+    if len(lit_before) != COUNTDOWN_FLASHES:
+        return 0, ("%d flashes before the robot moved, wanted %d"
+                   % (len(lit_before), COUNTDOWN_FLASHES))
 
-    # A second apart, give or take the loop's own granularity.
+    # Evenly spaced, give or take the loop's own granularity. This is the
+    # half that broke on hardware: the beats drifted long, and the go beat
+    # drifted longest because reset_pose() sat in front of it.
     gaps = [lit_before[i + 1] - lit_before[i]
             for i in range(len(lit_before) - 1)]
-    if any(abs(gap - 1000) > 150 for gap in gaps):
-        return 0, "flashes were %s ms apart, wanted about 1000" % gaps
+    if any(abs(gap - COUNTDOWN_BEAT_MS) > 80 for gap in gaps):
+        return 0, ("flashes were %s ms apart, wanted about %d"
+                   % (gaps, COUNTDOWN_BEAT_MS))
+    return 1, ""
+
+
+class SlowScript(Script):
+    """Every touch read costs time, the way an I2C read does.
+
+    Reading a pad on the real robot goes out to the STM32 and back. A
+    countdown that waits by adding up sleeps then runs long by whatever
+    those reads cost, and the error compounds beat over beat -- which is
+    how the fourth flash came late on hardware while the simulation, where
+    reads are free, showed a perfect countdown.
+    """
+
+    TOUCH_COST_MS = 3
+
+    def touch(self, name, env):
+        env.clock.advance(self.TOUCH_COST_MS)
+        return Script.touch(self, name, env)
+
+
+def test_the_beat_holds_when_reads_cost_time():
+    """The countdown must keep tempo on a robot with slow touch pads.
+
+    This is the check the free-latency simulation cannot make on its own,
+    and the bug it protects against was visible only on the robot.
+    """
+    if not _have_dut():
+        return 2, "move.py not present"
+    presses, _ = _select("CONSTANT", [("up", 2000)], None)
+    plant = SamplingPlant()
+    env = Environment(plant=plant,
+                      stimulus=SlowScript(presses, 30000),
+                      watchdog_ms=60000)
+    env.run(DUT)
+    if not env.result.ok:
+        return 0, "DUT raised: %r" % (env.result.error,)
+
+    lit = [stamp for stamp, rgb in _nano_events(env) if any(rgb)]
+    if len(lit) < COUNTDOWN_FLASHES + 1:
+        return 0, "only %d of the 4 countdown events happened" % len(lit)
+
+    gaps = [lit[i + 1] - lit[i] for i in range(COUNTDOWN_FLASHES)]
+    worst = max(abs(gap - COUNTDOWN_BEAT_MS) for gap in gaps)
+    if worst > 40:
+        return 0, ("beats were %s ms apart, wanted %d each -- the countdown "
+                   "is adding up sleeps instead of working to a deadline"
+                   % (gaps, COUNTDOWN_BEAT_MS))
     return 1, ""
 
 
@@ -568,9 +662,10 @@ def test_the_robot_does_not_move_during_the_countdown():
     env, plant = _drive_one("CONSTANT", "up", run_at_ms=2000)
     if not env.result.ok:
         return 0, "DUT raised: %r" % (env.result.error,)
-    moved = plant.distance_at(
-        [(0.0, cm) for _ms, cm in plant.trace
-         if _ms <= 2000 + COUNTDOWN_MS - 200], 0.0)
+    gos = _go_moments(env)
+    if not gos:
+        return 0, "the run never started"
+    moved = plant.distance_at_ms(gos[0] - 100)
     if moved > 0.5:
         return 0, "moved %.1f cm before the countdown finished" % moved
     return 1, ""
@@ -646,7 +741,7 @@ def test_immune_to_the_drive_speed_error():
         env, plant = _drive_one("CONSTANT", "up", defects=defects)
         if not env.result.ok:
             return 0, "raised at scale %.2f: %r" % (scale, env.result.error)
-        status, message = _check_readings(plant, "CONSTANT", "up")
+        status, message = _check_readings(env, plant, "CONSTANT", "up")
         if status == 0:
             return 0, "drive_scale %.2f: %s" % (scale, message)
     return 1, ""
@@ -664,7 +759,7 @@ def test_the_readings_check_has_teeth():
     defects = dict(DEFAULT_DEFECTS)
     defects["max_speed_cms"] = 4.0
     env, plant = _drive_one("CONSTANT", "up", defects=defects)
-    status, _ = _check_readings(plant, "CONSTANT", "up")
+    status, _ = _check_readings(env, plant, "CONSTANT", "up")
     if status == 1:
         return 0, ("a robot capped at 4 cm/s still passed the readings "
                    "check, so the check proves nothing")
