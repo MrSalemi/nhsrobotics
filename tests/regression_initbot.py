@@ -167,6 +167,82 @@ def test_no_single_bracket_uses_double_equals():
     return 1, ""
 
 
+def _source_it(source_dir):
+    """Source the script from a shell, the way Ray calls it.
+
+    Returns what the calling shell reported afterwards. The point is what
+    survives: the shell has to still be running, and `set -e` must not
+    have been left switched on in it.
+
+    bash stands in for zsh here, since zsh is not installed on every
+    machine that runs this suite. The hazard is identical -- a sourced
+    file runs in the caller -- and the fix is shell-agnostic.
+    """
+    bindir = tempfile.mkdtemp()
+    marker = os.path.join(bindir, "called.log")
+    stub = os.path.join(bindir, "mpremote")
+    try:
+        with open(stub, "w") as handle:
+            handle.write(MPREMOTE_STUB)
+        os.chmod(stub, 0o755)
+
+        env = dict(os.environ)
+        env["PATH"] = bindir + os.pathsep + env.get("PATH", "")
+        env["MPREMOTE_MARKER"] = marker
+
+        script = (". '%s' -d '%s' >/dev/null 2>&1\n"
+                  "echo ALIVE\n"
+                  "case $- in *e*) echo ERREXIT_LEAKED ;; esac\n"
+                  % (SCRIPT, source_dir))
+        proc = subprocess.run(["bash", "-c", script],
+                              env=env, capture_output=True, text=True,
+                              timeout=120)
+        return proc
+    finally:
+        shutil.rmtree(bindir, ignore_errors=True)
+
+
+def test_sourcing_does_not_kill_the_shell():
+    """`. ./initialize_robot.sh` must not close the terminal.
+
+    Sourced, every `exit` in the script belongs to the caller's shell --
+    and the symlink guard is one of them. On 2026-09-04 this shut iTerm.
+    """
+    if not _have_script():
+        return 2, "initialize_robot.sh not present"
+    root, source = _tree(broken=True)
+    try:
+        proc = _source_it(source)
+        if "ALIVE" not in proc.stdout:
+            return 0, ("the calling shell died; a sourced exit closed it "
+                       "instead of ending the script")
+        return 1, ""
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_sourcing_does_not_leave_errexit_on():
+    """`set -e` must not survive into the caller's session.
+
+    This is the nastier half: the script finishes, looking fine, and the
+    shell is left armed so the NEXT unrelated command that returns
+    nonzero closes the window.
+    """
+    if not _have_script():
+        return 2, "initialize_robot.sh not present"
+    root, source = _tree(broken=False)
+    try:
+        proc = _source_it(source)
+        if "ALIVE" not in proc.stdout:
+            return 0, "the calling shell died"
+        if "ERREXIT_LEAKED" in proc.stdout:
+            return 0, ("set -e was left switched on in the calling shell; "
+                       "the next failing command anywhere closes it")
+        return 1, ""
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_every_script_is_executable():
     """`./initialize_robot.sh` has to work, or the shebang never runs.
 

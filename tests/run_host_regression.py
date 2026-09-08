@@ -48,6 +48,10 @@ def main():
                     regression_initbot.test_a_healthy_tree_is_not_blocked)
     runner.run_test("Sync: no single-bracket ==",
                     regression_initbot.test_no_single_bracket_uses_double_equals)
+    runner.run_test("Sync: sourcing does not kill the shell",
+                    regression_initbot.test_sourcing_does_not_kill_the_shell)
+    runner.run_test("Sync: sourcing does not leave errexit on",
+                    regression_initbot.test_sourcing_does_not_leave_errexit_on)
     runner.run_test("Sync: every script is executable",
                     regression_initbot.test_every_script_is_executable)
     runner.run_test("Sync: every script parses under bash",

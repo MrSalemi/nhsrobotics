@@ -1,4 +1,10 @@
 #!/bin/bash
+# v33 - Safe to source. Sourcing ran the whole script inside the caller's
+#       zsh: the shebang was ignored, so bash-only spellings blew up part
+#       way through; "set -e" was left switched ON in the interactive
+#       shell, so the next failing command anywhere closed iTerm; and any
+#       "exit" shut the window on the spot. It now notices it was sourced,
+#       re-runs itself under bash, and returns.
 # v32 - FIXED: "[ "$TYPE" == "D" ]" is a bash-only spelling. Run under zsh
 #       it aborts the cleanup loop with "= not found", part way through
 #       deciding what to delete. Single brackets take "=".
@@ -24,6 +30,40 @@
 #
 # Developed with the assistance of Google Gemini
 
+# --- SOURCED, OR RUN? ---
+# Sourcing with `.` is a normal way to call this, so it has to be safe.
+# What sourcing does by default is run every line in the CALLER's shell,
+# which on this Mac is zsh, and that has three consequences:
+#
+#   * `#!/bin/bash` is ignored, so bash-only spellings fail -- and they
+#     fail part way through, after the robot has been scanned.
+#   * `set -e` below is left switched ON in the interactive shell when the
+#     script finishes. The next command anywhere that returns nonzero then
+#     closes the window.
+#   * every `exit` in here shuts the terminal instead of ending a script.
+#
+# So: if we were sourced, run ourselves properly under bash and return.
+# Nothing below this block ever executes in the caller's shell.
+__nhs_sourced=0
+if [ -n "${ZSH_VERSION:-}" ]; then
+    case "${ZSH_EVAL_CONTEXT:-}" in *:file*) __nhs_sourced=1 ;; esac
+elif [ -n "${BASH_VERSION:-}" ]; then
+    (return 0 2>/dev/null) && __nhs_sourced=1
+fi
+
+if [ "$__nhs_sourced" = 1 ]; then
+    # zsh sets $0 to the sourced file; bash needs BASH_SOURCE.
+    if [ -n "${BASH_VERSION:-}" ]; then
+        __nhs_self="${BASH_SOURCE}"
+    else
+        __nhs_self="$0"
+    fi
+    unset __nhs_sourced
+    bash "$__nhs_self" "$@"
+    return $?
+fi
+unset __nhs_sourced
+
 set -e
 
 # --- CONFIGURATION ---
@@ -45,7 +85,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo "Running initialize_robot.sh - v32 (broken symlinks stop the run)"
+echo "Running initialize_robot.sh - v33 (safe to source)"
 
 # --- VALIDATION ---
 if [ -z "$SOURCE_DIR" ]; then echo "❌ ERROR: Source directory not specified. Use -d <path>."; exit 1; fi
