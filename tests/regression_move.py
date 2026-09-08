@@ -2,12 +2,12 @@
 #
 # Runs init_bot/phy_robot/move.py, unmodified, inside the testbench. No
 # robot: the fakes stand in for the hardware and the program's own sleep
-# drives a simulated clock, so a six-second run finishes in milliseconds.
+# drives a simulated clock, so a whole run finishes in milliseconds.
 #
 # Every test returns (status, message): 1 pass, 0 fail, 2 skip.
 #
-# The claim under test is one sentence: at 1, 2, 3, 4 and 5 seconds the
-# robot is where the mode says it should be. That is what a student reads
+# The claim under test is one sentence: on each of the first six seconds
+# the robot is where the mode says it should be. That is what a student reads
 # off the metre stick, so it is the only thing worth asserting.
 #
 # Expectations are computed from the profile, never from the program's own
@@ -22,7 +22,7 @@ from tb.plant import Plant, DEFAULT_DEFECTS
 
 DUT = os.path.join(REPO, "init_bot", "phy_robot", "move.py")
 
-READINGS = (1.0, 2.0, 3.0, 4.0, 5.0)
+READINGS = (1.0, 2.0, 3.0, 4.0, 5.0, 6.0)
 
 # The three modes as the header table states them, in centimetres. Keyed
 # the way a run is chosen: mode name, then which arrow.
@@ -31,7 +31,7 @@ PROFILES = {
     ("STOPPED", "down"): (0.0, 0.0),
     ("CONSTANT", "up"): (10.0, 0.0),
     ("CONSTANT", "down"): (10.0, 0.0),
-    ("ACCELERATE", "up"): (0.0, 2.0),
+    ("ACCELERATE", "up"): (0.0, 1.5),
     ("ACCELERATE", "down"): (10.0, -1.0),
 }
 
@@ -190,7 +190,7 @@ def _check_readings(plant, mode_name, arrow, run_index=0):
 # --------------------------------------------------------------------------
 
 def test_constant_holds_its_speed():
-    """10 cm/s puts the robot on 10, 20, 30, 40, 50 cm."""
+    """10 cm/s puts the robot on 10, 20, 30, 40, 50, 60 cm."""
     if not _have_dut():
         return 2, "move.py not present"
     env, plant = _drive_one("CONSTANT", "up")
@@ -199,8 +199,8 @@ def test_constant_holds_its_speed():
     return _check_readings(plant, "CONSTANT", "up")
 
 
-def test_accelerate_forwards_gives_the_squares():
-    """+2 cm/s^2 from rest puts the robot on 1, 4, 9, 16, 25 cm."""
+def test_accelerate_forwards_matches_the_profile():
+    """+1.5 cm/s^2 from rest gives 0.75, 3, 6.75, 12, 18.75, 27 cm."""
     if not _have_dut():
         return 2, "move.py not present"
     env, plant = _drive_one("ACCELERATE", "up")
@@ -210,7 +210,7 @@ def test_accelerate_forwards_gives_the_squares():
 
 
 def test_accelerate_backwards_slows_down():
-    """10 cm/s decaying at 1 cm/s^2 gives 9.5, 18, 25.5, 32, 37.5 cm."""
+    """10 cm/s decaying at 1 cm/s^2 gives 9.5 ... 42 cm."""
     if not _have_dut():
         return 2, "move.py not present"
     env, plant = _drive_one("ACCELERATE", "down")
@@ -391,8 +391,9 @@ def test_the_lights_say_which_state_it_is_in():
     return 1, ""
 
 
-def test_a_run_lasts_six_seconds():
-    """All three modes run for the same time, so they compare."""
+def test_a_run_lasts_six_and_a_half_seconds():
+    """All three modes run 6.5 s, so they compare and nothing is read
+    while the robot is braking."""
     if not _have_dut():
         return 2, "move.py not present"
     env, plant = _drive_one("CONSTANT", "up")
@@ -409,8 +410,8 @@ def test_a_run_lasts_six_seconds():
 
     start_ms = plant.clock_restarts[0][0]
     length_s = (brakes[0][0] - start_ms) / 1000.0
-    if abs(length_s - 6.0) > 0.3:
-        return 0, "the run lasted %.2f s, not six" % length_s
+    if abs(length_s - 6.5) > 0.3:
+        return 0, "the run lasted %.2f s, not 6.5" % length_s
     return 1, ""
 
 

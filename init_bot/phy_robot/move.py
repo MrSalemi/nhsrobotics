@@ -13,18 +13,25 @@
 #
 # WHAT THE THREE MODES SHOW, AND WHY THESE NUMBERS
 #
-#   t                     1     2     3     4     5   seconds
-#   CONSTANT             10    20    30    40    50   cm
-#   ACCELERATE  up        1     4     9    16    25   cm
-#   ACCELERATE  down    9.5    18  25.5    32  37.5   cm
+#   t                     1     2     3     4      5     6   seconds
+#   CONSTANT             10    20    30    40     50    60   cm
+#   ACCELERATE  up     0.75     3  6.75    12  18.75    27   cm
+#   ACCELERATE  down    9.5    18  25.5    32   37.5    42   cm
 #
 # Take the gap between one reading and the next, then the gap between those
-# gaps. Constant gives zero. Speeding up gives +2 cm every time. Slowing
+# gaps. Constant gives zero. Speeding up gives +1.5 cm every time. Slowing
 # down gives -1 cm every time. That second difference IS the acceleration,
 # and it is the same story in all three modes, which is what makes three
 # stations worth comparing.
 #
-# The forwards numbers are the perfect squares on purpose.
+# The forwards acceleration used to be 2 cm/s^2, which put the readings on
+# the perfect squares -- 1, 4, 9, 16, 25. Readings now run to six seconds,
+# and at 2 cm/s^2 the robot would need 12 cm/s to get there. It cannot do
+# that: 70 RPM on a 34 mm wheel is 12.5 cm/s and drive() delivers 92.6% of
+# it, so the real ceiling is about 11.5. It would have flattened out at
+# 5.8 s, just before the last reading, and the nicest numbers in the set
+# would have bought a wrong one. 1.5 cm/s^2 needs 9.75 cm/s at 6.5 s, which
+# leaves 15% in hand.
 #
 # HOW THE ROBOT KEEPS ITS PROMISE
 #
@@ -84,7 +91,7 @@ CONSTANT = {
 ACCELERATE = {
     "name": "ACCELERATE",
     "color": (0, 0, 1),
-    "up": (0.0, 2.0),           # from rest, +0.020 m/s^2
+    "up": (0.0, 1.5),           # from rest, +0.015 m/s^2
     "down": (10.0, -1.0),       # fast, then slowing at 0.010 m/s^2
 }
 
@@ -92,10 +99,11 @@ ACCELERATE = {
 MODES = (STOPPED, CONSTANT, ACCELERATE)
 
 # Every run is the same length, so the three modes are directly comparable.
-# Students read five of these seconds; the sixth is there so the last
-# reading is not taken while the robot is stopping.
-RUN_SECONDS = 6.0
-READINGS = (1.0, 2.0, 3.0, 4.0, 5.0)
+# Readings are taken on each of the first six seconds; the run goes half a
+# second past the last one, so nobody is reading the stick while the robot
+# is braking.
+RUN_SECONDS = 6.5
+READINGS = (1.0, 2.0, 3.0, 4.0, 5.0, 6.0)
 
 # --- LIMITS -------------------------------------------------------------
 # 70 RPM on a 34 mm wheel is 12.5 cm/s. That is what the motors can be
