@@ -24,7 +24,7 @@ for path in (HERE, os.path.join(REPO, "nhs_lib")):
 
 from regression_utils import RegressionRunner
 import regression_solutions as solutions
-import regression_accelerator as accelerator
+import regression_move as move
 
 
 TESTS = [
@@ -69,29 +69,47 @@ TESTS = [
     ("Line: works with no screen", solutions.test_line_works_with_no_screen),
     ("Line: Cancel stops it", solutions.test_line_cancel_stops_it),
 
-    # Physics 1.8 -- init_bot/phy_robot/accelerator.py
-    ("Accel: UP matches the profile",
-     accelerator.test_up_matches_the_profile),
-    ("Accel: DOWN matches the profile",
-     accelerator.test_down_matches_the_profile),
-    ("Accel: immune to the drive() speed error",
-     accelerator.test_up_immune_to_the_speed_error),
-    ("Accel: the profile check has teeth",
-     accelerator.test_the_profile_check_has_teeth),
-    ("Accel: neither run brakes on a mark",
-     accelerator.test_neither_run_brakes_on_a_mark),
-    ("Accel: the robot is stopped between runs",
-     accelerator.test_the_robot_is_stopped_between_runs),
-    ("Accel: Cancel quits while blinking",
-     accelerator.test_cancel_while_blinking_quits),
-    ("Accel: Cancel quits during a run",
-     accelerator.test_cancel_during_a_run_quits),
-    ("Accel: lights go out at the end",
-     accelerator.test_lights_go_out_at_the_end),
-    ("Accel: drive() is not re-issued every pass",
-     accelerator.test_drive_is_not_re_issued_every_pass),
-    ("Accel: never asks for more than the robot has",
-     accelerator.test_it_never_asks_for_more_than_the_robot_has),
+    # Physics -- init_bot/phy_robot/move.py
+    ("Move: constant holds its speed",
+     move.test_constant_holds_its_speed),
+    ("Move: accelerate forwards gives the squares",
+     move.test_accelerate_forwards_gives_the_squares),
+    ("Move: accelerate backwards slows down",
+     move.test_accelerate_backwards_slows_down),
+    ("Move: stopped does not move",
+     move.test_stopped_does_not_move),
+    ("Move: down is backwards in every mode",
+     move.test_down_is_backwards_in_every_mode),
+    ("Move: right steps forwards through the modes",
+     move.test_right_steps_forwards_through_the_modes),
+    ("Move: left steps backwards and wraps",
+     move.test_left_steps_backwards_and_wraps),
+    ("Move: the arrows do nothing before OK",
+     move.test_the_arrows_do_nothing_before_ok),
+    ("Move: the mode cannot change after OK",
+     move.test_the_mode_cannot_change_after_ok),
+    ("Move: the lights say which state it is in",
+     move.test_the_lights_say_which_state_it_is_in),
+    ("Move: a run lasts six seconds",
+     move.test_a_run_lasts_six_seconds),
+    ("Move: it goes back to waiting after a run",
+     move.test_it_goes_back_to_waiting_after_a_run),
+    ("Move: an arrow during a run is ignored",
+     move.test_an_arrow_during_a_run_is_ignored),
+    ("Move: Cancel quits from selection",
+     move.test_cancel_quits_from_selection),
+    ("Move: Cancel quits during a run",
+     move.test_cancel_quits_during_a_run),
+    ("Move: the lights go out at the end",
+     move.test_the_lights_go_out_at_the_end),
+    ("Move: immune to the drive() speed error",
+     move.test_immune_to_the_drive_speed_error),
+    ("Move: the readings check has teeth",
+     move.test_the_readings_check_has_teeth),
+    ("Move: never asks for more than the robot has",
+     move.test_it_never_asks_for_more_than_the_robot_has),
+    ("Move: drive() is not re-issued every pass",
+     move.test_drive_is_not_re_issued_every_pass),
 ]
 
 

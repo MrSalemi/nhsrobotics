@@ -1,2 +1,2 @@
 # import the demo
-import accelerator
+import move
