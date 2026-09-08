@@ -1,4 +1,7 @@
 #!/bin/bash
+# v32 - FIXED: "[ "$TYPE" == "D" ]" is a bash-only spelling. Run under zsh
+#       it aborts the cleanup loop with "= not found", part way through
+#       deciding what to delete. Single brackets take "=".
 # v31 - Refuse to run when a symlink in the source tree points at nothing.
 #       The cleanup decides a robot file is stale with [ -d ] and [ -f ],
 #       and both follow symlinks, so a dangling link looks exactly like a
@@ -42,7 +45,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo "Running initialize_robot.sh - v31 (broken symlinks stop the run)"
+echo "Running initialize_robot.sh - v32 (broken symlinks stop the run)"
 
 # --- VALIDATION ---
 if [ -z "$SOURCE_DIR" ]; then echo "❌ ERROR: Source directory not specified. Use -d <path>."; exit 1; fi
@@ -227,7 +230,11 @@ while IFS= read -r line; do
     LOCAL_PATH="${SOURCE_DIR}/${RPATH}"
     
     EXISTS_LOCALLY=false
-    if [ "$TYPE" == "D" ]; then
+    # "=" and not "==". Inside single brackets, == is a bash-only spelling:
+    # zsh treats a word starting with = as a command lookup and dies with
+    # "= not found", and sh says "unexpected operator". = works in all of
+    # them. Cost an aborted sync on 2026-09-04.
+    if [ "$TYPE" = "D" ]; then
         if [ -d "$LOCAL_PATH" ]; then EXISTS_LOCALLY=true; fi
     else
         if [ -f "$LOCAL_PATH" ]; then EXISTS_LOCALLY=true; fi

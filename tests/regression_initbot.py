@@ -13,6 +13,7 @@
 # stale and both of those follow symlinks.
 
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -135,6 +136,74 @@ def test_a_healthy_tree_is_not_blocked():
         return 1, ""
     finally:
         shutil.rmtree(root, ignore_errors=True)
+
+
+def test_no_single_bracket_uses_double_equals():
+    """`[ "$x" == "y" ]` is bash-only, and these scripts get run by zsh.
+
+    zsh treats a word beginning with = as a command to look up, so the
+    line dies with "= not found" -- and on 2026-09-04 it died half way
+    through the loop that decides what to delete off the robot. `=` means
+    the same thing in bash, zsh and sh. Double brackets are fine and are
+    left alone.
+    """
+    if not _have_script():
+        return 2, "initialize_robot.sh not present"
+    pattern = re.compile(r'(?<!\[)\[ [^]]*[^=!<>]==')
+    offenders = []
+    initbot = os.path.join(REPO, "init_bot")
+    for name in sorted(os.listdir(initbot)):
+        if not name.endswith(".sh"):
+            continue
+        path = os.path.join(initbot, name)
+        with open(path) as handle:
+            for number, line in enumerate(handle, 1):
+                if line.lstrip().startswith("#"):
+                    continue
+                if pattern.search(line):
+                    offenders.append("%s:%d" % (name, number))
+    if offenders:
+        return 0, ("single-bracket == (use =): %s" % ", ".join(offenders))
+    return 1, ""
+
+
+def test_every_script_is_executable():
+    """`./initialize_robot.sh` has to work, or the shebang never runs.
+
+    Lose the executable bit and the shell says "permission denied". The
+    natural next move is `zsh initialize_robot.sh`, which starts it but
+    ignores `#!/bin/bash` -- so the script runs under the wrong shell and
+    fails somewhere in the middle instead of at the start. That is how
+    2026-09-04 went: a `sed -i` rewrote the file and dropped the bit.
+    """
+    if not _have_script():
+        return 2, "initialize_robot.sh not present"
+    initbot = os.path.join(REPO, "init_bot")
+    not_executable = []
+    for name in sorted(os.listdir(initbot)):
+        if not name.endswith(".sh"):
+            continue
+        if not os.access(os.path.join(initbot, name), os.X_OK):
+            not_executable.append(name)
+    if not_executable:
+        return 0, ("not executable, so ./%s will not run: %s -- fix with "
+                   "chmod +x" % (not_executable[0], ", ".join(not_executable)))
+    return 1, ""
+
+
+def test_every_script_parses_under_bash():
+    """A syntax error here is a robot half-synced, so catch it in the suite."""
+    if not _have_script():
+        return 2, "initialize_robot.sh not present"
+    initbot = os.path.join(REPO, "init_bot")
+    for name in sorted(os.listdir(initbot)):
+        if not name.endswith(".sh"):
+            continue
+        proc = subprocess.run(["bash", "-n", os.path.join(initbot, name)],
+                              capture_output=True, text=True)
+        if proc.returncode != 0:
+            return 0, "%s: %s" % (name, proc.stderr.strip()[:300])
+    return 1, ""
 
 
 def test_the_real_source_trees_are_intact():

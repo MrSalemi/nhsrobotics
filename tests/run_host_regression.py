@@ -46,6 +46,12 @@ def main():
                     regression_initbot.test_the_error_says_how_to_fix_it)
     runner.run_test("Sync: a healthy tree is not blocked",
                     regression_initbot.test_a_healthy_tree_is_not_blocked)
+    runner.run_test("Sync: no single-bracket ==",
+                    regression_initbot.test_no_single_bracket_uses_double_equals)
+    runner.run_test("Sync: every script is executable",
+                    regression_initbot.test_every_script_is_executable)
+    runner.run_test("Sync: every script parses under bash",
+                    regression_initbot.test_every_script_parses_under_bash)
     runner.run_test("Sync: the real source trees are intact",
                     regression_initbot.test_the_real_source_trees_are_intact)
 
