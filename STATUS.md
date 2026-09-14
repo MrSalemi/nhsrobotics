@@ -109,10 +109,15 @@ command, instead of dying in a node stack trace.
 `init_bot/` holds four source trees — `nhs_robot`, `phy_robot`, `eng_bot`
 and the `factory_alivk` archive — and all three live ones point `lib` at
 the same `../../nhs_lib`. So a physics program is built and synced from
-here even though the physics *course* lives in the `physics` vault. As of
-2026-09-04 `phy_robot` boots into `accelerator.py`, the lesson 1.8
-constant-acceleration activity; `marsRoverDrop.py` is still on the robot
-and is wanted later.
+here even though the physics *course* lives in the `physics` vault.
+
+~~As of 2026-09-04 `phy_robot` boots into `accelerator.py`, the lesson 1.8
+constant-acceleration activity~~ — 2026-09-08: superseded. `accelerator.py`
+became **`move.py`** and grew from one acceleration profile into three
+selectable modes — STOPPED, CONSTANT and ACCELERATE — picked with
+left/right and locked with OK, so one program serves three stations.
+`phy_robot/main.py` imports `move`. `marsRoverDrop.py` is still on the
+robot and is wanted later.
 
 **P00 First Lights is new, and P07-P09 have still never been run on a robot.**
 
@@ -144,6 +149,53 @@ P10+ project as an argument about P07-P09 — those slots may be rewritten or cu
 
 ## What's done
 
+**2026-09-14 — the constant-speed robot slowed down, and the Nano LED
+started counting the seconds.**
+
+- **CONSTANT is 5 cm/s, not 10.** Ray watched it on the floor and it ran
+  about twice as fast as the printed table said. Marks are now
+  5/10/15/20/25/30 cm. **Only that mode changed** — both ACCELERATE runs
+  are exactly the numbers they were. See [DECISIONS #53](DECISIONS.md).
+- **Nothing in the code explains the 2x.** The whole chain was read: the
+  program asks in cm/s, the Alvik library converts cm/s to mm/s
+  correctly, and its wheel diameter and max-RPM constants match the
+  hardware spec. The run loop is closed on `get_pose()`, so it should
+  already absorb any delivery-ratio error on its own, and it did not.
+  That is the open question, not the speed number.
+- **The Nano LED marks each second with its own colour** — white at the
+  go, then red, yellow, green, cyan, magenta on seconds one to five. The
+  last colour holds three seconds and **going out** is the "run over,
+  reset it" signal. Students were losing count watching a moving robot.
+  [DECISIONS #54](DECISIONS.md).
+- **`tests/regression_move.py` covers all of it**, including that the six
+  signals are distinct and none reads as white. Solution suite 42 pass /
+  0 fail / 9 skip; host 58 / 0 / 9.
+
+**2026-09-08 — `accelerator.py` became `move.py`, with three modes.**
+
+Never written down at the time; recovered from the code and the commit
+log on 2026-09-14.
+
+- **Three selectable modes in one program** — STOPPED, CONSTANT,
+  ACCELERATE — so the three stations run the same file. Left and right
+  step through, OK locks one in, and the only way back to selection is a
+  restart.
+- **A three-flash countdown on the Nano LED**, on a 600 ms beat, with the
+  robot starting on the fourth beat. An accelerating robot is invisible
+  for its first half second, so the start has to be announced rather than
+  watched for.
+- **The countdown works to absolute deadlines**, not by adding up sleeps.
+  Reading a touch pad is an I2C round trip and is not free, so adding
+  sleeps ran each beat long and the error compounded — on the robot the
+  beat came out at 723 ms instead of 600. `reset_pose()` also moved to
+  *before* the countdown, because it is a round trip too and it was
+  delaying the go light.
+- **Run extended to 6.5 s with readings to 6 s**, and the forwards
+  acceleration set to 1.5 cm/s² so the last reading stays clear of the
+  speed ceiling.
+- **`initialize_robot.sh` is at v33**, not v31: v32 restored the exec bit
+  and moved to single-bracket `=`, v33 made the script safe to source.
+
 **2026-09-04 — the physics accelerator, and the sync stopped deleting the
 robot's driver.**
 
@@ -155,26 +207,32 @@ robot's driver.**
   by the robot's top speed and by Ray's requirement that the two runs not be
   mirrors — see [DECISIONS #49](DECISIONS.md). `phy_robot/main.py` now
   imports it instead of `marsRoverDrop`.
+  — 2026-09-08: the file is `move.py` now and the activity is three modes
+  rather than two runs. The acceleration figures above still stand; the
+  constant-speed mode joined them and was halved on 2026-09-14.
 - **It steers on the pose rather than commanding speed.**
   [DECISIONS #50](DECISIONS.md). Simulated times land within 0.09 s of the
   profile at every mark, which is inside what a student can read.
-- **`tests/regression_accelerator.py`** — eleven checks, every one
-  mutation-tested, folded into `run_solution_regression.py` and therefore
-  into the host suite. Solution suite is 24 pass / 9 skip; host is 35 / 9.
+- ~~**`tests/regression_accelerator.py`** — eleven checks~~ — renamed
+  `tests/regression_move.py` with the program. It is well past eleven
+  checks now, every one mutation-tested, folded into
+  `run_solution_regression.py` and therefore into the host suite.
 - **The testbench's model of the 0.21 s lag changed.**
   [DECISIONS #51](DECISIONS.md). It used to stop the robot dead for 210 ms
   after *any* command change, which makes a ramp impossible. It now slews.
   `plant.py` also gained a `max_speed_cms` knob, because without one the sim
   accelerates forever and a profile that saturates on the real floor passes
   every check.
-- **`initialize_robot.sh` is v31 and refuses to run on a broken symlink.**
+- **`initialize_robot.sh` refuses to run on a broken symlink.** It was v31
+  here; it is **v33** as of 2026-09-08.
   [DECISIONS #52](DECISIONS.md). Its banner also said v29 while the header
   said v30; fixed. Four laptop-side checks in
   `tests/regression_initbot.py`, one of which reads the three real source
   trees as they sit on disk.
 
-**Nobody has run `accelerator.py` on the floor.** Everything above is
-simulated.
+~~**Nobody has run `accelerator.py` on the floor.**~~ — 2026-09-14: Ray
+has now run `move.py` on the floor. That is how the constant-speed
+problem was found.
 
 **2026-08-29 — the builder stopped being a submodule, and the guides got their
 fonts and spacing settled.** A long session; the detail is in DECISIONS #45 and
@@ -329,13 +387,40 @@ reads better. See [DECISIONS #46](DECISIONS.md).
 
 ## What's open
 
-**`accelerator.py` has never been run on a robot**
+**The constant-speed robot ran 2x fast and nobody knows why**
 
-Sim only. Put it beside the metre stick at full charge and again at half,
-since the ceiling moves with the battery. The tell for trouble is the UP
-run's last two marks coming in late while the early ones are fine — that is
-the speed ceiling, and 0.010 has to come down. Each run prints its own mark
-times over USB, so the robot can be checked against a stopwatch.
+This is the biggest open thing in the physics program. On 2026-09-14 Ray
+watched CONSTANT on the floor and it covered roughly twice the printed
+distance. The speed was halved to 5 cm/s so the station works, but that
+is a workaround and the cause is untouched.
+
+What was ruled out by reading the code: the program asks `drive()` in
+cm/s and reads `get_pose()` in cm, both defaults, both correct; the
+library's `convert_speed` cm/s→mm/s is right; `WHEEL_DIAMETER_MM` 34 and
+`MOTOR_MAX_RPM` 70 match the hardware. Nothing doubles anything.
+
+What makes it strange: the run loop is **closed** on the pose. It
+computes where the profile says the robot should be, reads where it
+actually is, and corrects. A robot delivering twice the commanded speed
+should have been pulled back within a second or two. Either the pose is
+not telling the loop the truth, or the correction is not reaching the
+motors. Printing `should_be_at` beside `gone` on every pass of one real
+run would separate those two in a single session.
+
+**`move.py` still needs a full floor check**
+
+Run each mode at full charge and again at half, since the ceiling moves
+with the battery. The tell for trouble on the accelerating run is the last
+two marks coming in late while the early ones are fine — that is the speed
+ceiling, and the acceleration has to come down. Each run prints its own
+mark times over USB, so the robot can be checked against a stopwatch.
+
+**The sixth reading has no colour**
+
+The Nano LED marks seconds one to five, but `READINGS` still logs a 6 s
+reading and the run still goes to 6.5 s, so the robot is moving for a
+second and a half after the last colour. Either add a sixth colour or drop
+the 6 s reading. Ray's call; deliberately left alone on 2026-09-14.
 
 **Physics 1.8 is only half specified**
 
@@ -346,11 +431,14 @@ back. Nobody has said that is the procedure they want.
 
 **How the Alvik follows a *changing* speed setpoint has never been measured**
 
-Every number in `accelerator.py` rests on it, and the testbench now assumes
+Every number in `move.py` rests on it, and the testbench now assumes
 a first-order response with a 0.21 s time constant
 ([DECISIONS #51](DECISIONS.md)). The measured 0.21 s was a startup lag from
 standstill; nobody has watched the base track a ramp. This is the single
-thing most likely to make the real robot miss the printed times.
+thing most likely to make the real robot miss the printed times — and the
+2x above is the first hard evidence that the model and the floor disagree.
+One bench run, commanding a ramp and logging the pose, settles this and
+probably the 2x with it.
 
 **The real top speed is somewhere between 11.5 and 12.5 cm/s**
 
@@ -363,9 +451,10 @@ not matter. Anything faster needs the measurement first.
 
 `nhs_lib/arduino_alvik`, `nhs_lib/qwiic_i2c` and `nhs_lib/qwiic_buzzer.py`
 are symlinks into `libs_on_github/`. With those submodules not checked out,
-they dangle. The school Mac was repaired on 2026-09-04; the home Mac has not
-been checked. `git submodule update --init --recursive` works with no
-network, since the objects are already in `.git/modules`.
+they dangle. The school Mac was repaired on 2026-09-04 and all three still
+resolved on 2026-09-14; the home Mac has not been checked.
+`git submodule update --init --recursive` works with no network, since the
+objects are already in `.git/modules`.
 
 **The other four vaults have not had the font and spacing change deployed**
 

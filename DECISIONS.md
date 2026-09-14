@@ -666,3 +666,69 @@ noted, a decision affects both repos.
     and quietly. `.robotignore` cannot help: a whitelisted path is one the
     loop preserves, so naming the libraries there would protect a stale copy
     instead of shipping the right one. — 2026-09-04
+
+53. **The constant-speed mode is 5 cm/s, and only that mode changed.**
+    *(affects `init_bot/phy_robot/move.py` and the physics vault's lesson
+    1.8.)*
+
+    Ray ran CONSTANT on the floor and it covered about twice the distance
+    the printed table says. Halved to 5 cm/s, so the marks are
+    5/10/15/20/25/30 cm.
+
+    **The two ACCELERATE runs were left exactly as they were.** The first
+    attempt at this halved all three modes together, on the argument that
+    scaling v0 and a by the same factor halves the distance at every
+    reading time and leaves all three graphs the same shape. That is true
+    and it was wrong: Ray had watched one mode and formed a judgement
+    about one mode. The others he had not looked at, and rewriting numbers
+    he had already accepted is not a tidy-up, it is throwing away his
+    work. **A request names its own scope.**
+
+    **This is a workaround, not a fix, and that matters.** The whole drive
+    chain was read and nothing in it doubles anything: the program asks
+    `drive()` in cm/s and reads `get_pose()` in cm, both library defaults;
+    `convert_speed` from cm/s to mm/s is correct; `WHEEL_DIAMETER_MM` 34
+    and `MOTOR_MAX_RPM` 70 match the hardware.
+
+    What makes it genuinely strange is that the run loop is **closed on
+    the pose** ([#50](DECISIONS.md)) — it compares where the profile says
+    the robot should be against where it is, and corrects. A robot going
+    twice as fast as commanded should have been reeled in within a second.
+    So either the pose is not reporting truthfully or the correction is
+    not reaching the motors, and until one of those is established every
+    number in this program is resting on the same unknown. This is
+    [#51](DECISIONS.md)'s unpaid debt showing up on the floor.
+    — 2026-09-14
+
+54. **The Nano LED counts the seconds in colour, and going out means the
+    run is over.** *(affects `init_bot/phy_robot/move.py` and
+    `tests/regression_move.py`.)*
+
+    Students were losing the count: reading a metre stick and counting
+    seconds are two jobs, and the robot only stops for one of them. So
+    the light does the counting. White at the go, then red, yellow,
+    green, cyan and magenta on seconds one to five.
+
+    **White is reserved for the go**, and no mark may read as white,
+    because a mark mistaken for the go puts a whole run out by one
+    reading. The five marks also carry a dark channel each so they stay
+    distinguishable across a room. The colour additionally says *which*
+    reading it is, so a missed one is obvious instead of silently
+    shifting every later number up by one.
+
+    **The last colour holds three seconds and then goes out, and the
+    going out is the signal.** It was previously extinguished the instant
+    the robot braked — the one moment when everybody is still writing the
+    last reading down. The hold is measured from when the mark landed,
+    not from the end of the run, so it deliberately outlives the motion.
+
+    A consequence worth knowing: a test can no longer find the start of a
+    run by looking for "the light that stays on", because every colour
+    change is a light coming on. `regression_move.py` counts past the
+    three countdown flashes instead.
+
+    **Left undecided:** `READINGS` still logs a 6 s reading and the run
+    still lasts 6.5 s, so the sixth reading has no colour and the robot
+    keeps moving after magenta. Either a sixth colour or a shorter run
+    settles it; both change what students are asked to measure, so it is
+    Ray's. — 2026-09-14
