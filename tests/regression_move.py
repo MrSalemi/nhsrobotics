@@ -181,7 +181,24 @@ COUNTDOWN_BEAT_MS = 600
 COUNTDOWN_MS = COUNTDOWN_FLASHES * COUNTDOWN_BEAT_MS
 RUN_MS = 6500
 SETTLE_MS = 600
-WHOLE_RUN_MS = COUNTDOWN_MS + RUN_MS + SETTLE_MS
+
+# One colour per second for the first five seconds, then the last one
+# holds. Spelled out here rather than imported from move.py, so that a
+# change to the program is something these checks can notice.
+MARK_COLORS = (
+    (1.0, (255, 0, 0)),
+    (2.0, (255, 180, 0)),
+    (3.0, (0, 255, 0)),
+    (4.0, (0, 255, 255)),
+    (5.0, (255, 0, 255)),
+)
+LAST_MARK_HOLD_S = 3.0
+GO_RGB = (255, 255, 255)
+
+# The light outlives the motion: the last mark lands at 5 s and holds
+# three more, which is past the 6.5 s run and its settle.
+LIGHT_OUT_MS = int((MARK_COLORS[-1][0] + LAST_MARK_HOLD_S) * 1000)
+WHOLE_RUN_MS = COUNTDOWN_MS + max(RUN_MS + SETTLE_MS, LIGHT_OUT_MS)
 
 
 def _drive_one(mode_name, arrow, defects=None, run_at_ms=2000):
@@ -197,33 +214,32 @@ def _nano_events(env):
             in env.monitor.transactions if kind == "nano_led"]
 
 
-def _go_moments(env):
+def _go_moments(env, plant):
     """When each run actually started, in session milliseconds.
 
-    t = 0 is the moment the go light comes on and HOLDS -- that is the
-    program's contract with the students, and since reset_pose() now
-    happens before the countdown it is no longer a marker for anything.
-    A countdown flash is an on followed by an off within a beat; the go
-    is an on that stays on.
+    t = 0 is the moment the go light comes on -- that is the program's
+    contract with the students, and since reset_pose() now happens before
+    the countdown it is no longer a marker for anything.
+
+    The countdown is exactly COUNTDOWN_FLASHES flashes and the go is the
+    next light after them, so this counts to it from each run's start.
+    Finding it as "the light that stays on" stopped working on 2026-09-14,
+    when the go stopped being one colour: the second marks are lights
+    coming on too, and every one of them looked like a go.
     """
     events = _nano_events(env)
     gos = []
-    for index, (stamp, rgb) in enumerate(events):
-        if not any(rgb):
-            continue
-        off = None
-        for later_stamp, later_rgb in events[index + 1:]:
-            if not any(later_rgb):
-                off = later_stamp
-                break
-        if off is None or off - stamp > 2 * COUNTDOWN_BEAT_MS:
-            gos.append(stamp)
+    for start_ms, _cm in plant.clock_restarts:
+        lit = [stamp for stamp, rgb in events
+               if stamp >= start_ms and any(rgb)]
+        if len(lit) > COUNTDOWN_FLASHES:
+            gos.append(lit[COUNTDOWN_FLASHES])
     return gos
 
 
 def _readings_of(env, plant, run_index=0):
     """(seconds, cm) at each reading time of one run."""
-    gos = _go_moments(env)
+    gos = _go_moments(env, plant)
     if len(gos) <= run_index:
         return None
     start_ms = gos[run_index]
@@ -467,7 +483,7 @@ def test_a_run_lasts_six_and_a_half_seconds():
     env, plant = _drive_one("CONSTANT", "up")
     if not env.result.ok:
         return 0, "DUT raised: %r" % (env.result.error,)
-    gos = _go_moments(env)
+    gos = _go_moments(env, plant)
     if not gos:
         return 0, "no run happened"
     brakes = env.monitor.of("brake")
@@ -675,7 +691,7 @@ def test_the_robot_does_not_move_during_the_countdown():
     env, plant = _drive_one("CONSTANT", "up", run_at_ms=2000)
     if not env.result.ok:
         return 0, "DUT raised: %r" % (env.result.error,)
-    gos = _go_moments(env)
+    gos = _go_moments(env, plant)
     if not gos:
         return 0, "the run never started"
     moved = plant.distance_at_ms(gos[0] - 100)
@@ -685,10 +701,12 @@ def test_the_robot_does_not_move_during_the_countdown():
 
 
 def test_the_go_light_holds_through_the_run():
-    """On at the start, on all the way, out at the stop.
+    """Lit at the start, lit all the way, out at the end.
 
-    A flash at t=0 would be a start signal too, but the light staying on
-    is also what says "still running" to somebody who looked away.
+    A flash at t=0 would be a start signal too, but a light that stays lit
+    is also what says "still running" to somebody who looked away. Which
+    colour it is changes at every second mark; that it is lit at all does
+    not, and that is what this checks.
     """
     if not _have_dut():
         return 2, "move.py not present"
@@ -734,6 +752,161 @@ def test_cancel_during_the_countdown_aborts():
     if not env.monitor.saw("stop"):
         return 0, "the finally block never called alvik.stop()"
     return 1, ""
+
+
+# --------------------------------------------------------------------------
+# The second marks
+# --------------------------------------------------------------------------
+
+# A mark is set inside the run loop, which looks at the clock every
+# UPDATE_MS, so it can land up to one pass late. Probe far enough either
+# side of a second to be clear of that and nothing else.
+MARK_SLOP_MS = 150
+
+
+def _shown_marks(env, plant):
+    """What the light was showing just after the go and each mark.
+
+    Returns None if the run never started. Sampled from the run rather
+    than read off the table, so these checks are about what a student in
+    the room would have seen.
+    """
+    gos = _go_moments(env, plant)
+    if not gos:
+        return None
+    go = gos[0]
+    shown = [_nano_state_at(env, go + MARK_SLOP_MS)]
+    for second, _want in MARK_COLORS:
+        shown.append(_nano_state_at(env, go + int(second * 1000)
+                                    + MARK_SLOP_MS))
+    return shown
+
+
+def test_each_second_gets_its_own_colour():
+    """Red, yellow, green, cyan, magenta on seconds one to five.
+
+    The point of the marks is that a student can watch the metre stick
+    without also counting seconds, so each one has to be the right colour
+    AND land on its own second. Probing both sides of every mark pins
+    both: a program that showed the right colours in the right order but
+    a second late would sail through a sequence-only check, and every
+    reading it produced would be wrong.
+    """
+    if not _have_dut():
+        return 2, "move.py not present"
+    env, plant = _drive_one("CONSTANT", "up")
+    if not env.result.ok:
+        return 0, "DUT raised: %r" % (env.result.error,)
+    gos = _go_moments(env, plant)
+    if not gos:
+        return 0, "the run never started"
+    go = gos[0]
+
+    previous = GO_RGB
+    for second, want in MARK_COLORS:
+        at = go + int(second * 1000)
+        before = _nano_state_at(env, at - MARK_SLOP_MS)
+        if before != previous:
+            return 0, ("just before %.0f s the light was %s, wanted %s -- "
+                       "that mark came early"
+                       % (second, before, previous))
+        after = _nano_state_at(env, at + MARK_SLOP_MS)
+        if after != want:
+            return 0, ("at %.0f s the light was %s, wanted %s"
+                       % (second, after, want))
+        previous = want
+    return 1, ""
+
+
+def test_the_marks_are_distinct_and_none_is_white():
+    """Six signals that have to be told apart across a classroom.
+
+    White is the go, so a mark that reads as white puts a whole run out
+    by one reading -- and two marks the same colour make two readings
+    impossible to tell apart. Checked against what the program showed,
+    not against the table at the top of this file, which is only this
+    file's copy of the intention.
+    """
+    if not _have_dut():
+        return 2, "move.py not present"
+    env, plant = _drive_one("CONSTANT", "up")
+    if not env.result.ok:
+        return 0, "DUT raised: %r" % (env.result.error,)
+    shown = _shown_marks(env, plant)
+    if shown is None:
+        return 0, "the run never started"
+    if any(state is None for state in shown):
+        return 0, "the light was never set for one of the six signals"
+
+    if len(set(shown)) != len(shown):
+        return 0, "two of the six signals are the same colour: %s" % (shown,)
+
+    # All three channels well lit is white to the eye whatever the numbers
+    # say, so this asks about the appearance rather than an exact match.
+    for state in shown[1:]:
+        if min(state) > 120:
+            return 0, ("%s is too close to white, and white is the go"
+                       % (state,))
+    return 1, ""
+
+
+def test_the_last_mark_holds_then_goes_out():
+    """Five seconds in, the colour stays put for three more, then out.
+
+    The robot stops at 6.5 s and the light is still on, deliberately:
+    going out is the "over, reset it" signal and it has to arrive after
+    the last reading is written down, not while everybody is still
+    writing. This is the half that used to go wrong -- the light went out
+    the instant the robot braked.
+    """
+    if not _have_dut():
+        return 2, "move.py not present"
+    env, plant = _drive_one("CONSTANT", "up")
+    if not env.result.ok:
+        return 0, "DUT raised: %r" % (env.result.error,)
+    gos = _go_moments(env, plant)
+    if not gos:
+        return 0, "the run never started"
+    go = gos[0]
+    _last_second, last_rgb = MARK_COLORS[-1]
+
+    # Lit and unchanged during the run, and still lit well after the
+    # brake -- that second probe is the one with teeth.
+    for probe in (RUN_MS - 200, LIGHT_OUT_MS - 250):
+        state = _nano_state_at(env, go + probe)
+        if state != last_rgb:
+            return 0, ("the light was %s at %d ms after the go, wanted %s "
+                       "-- the last mark is not holding"
+                       % (state, probe, last_rgb))
+
+    state = _nano_state_at(env, go + LIGHT_OUT_MS + 250)
+    if state is None or any(state):
+        return 0, ("the light was still %s three seconds after the last "
+                   "mark landed" % (state,))
+    return 1, ""
+
+
+def test_the_marks_do_not_disturb_the_measurement():
+    """Lighting the LED must not cost the robot its numbers.
+
+    The marks are set inside the same loop that steers, so a mark that
+    blocked, or that pushed drive() off its beat, would show up as
+    readings drifting off the profile. Same check as the constant-speed
+    test, stated here as the thing the light is not allowed to break.
+    """
+    if not _have_dut():
+        return 2, "move.py not present"
+    env, plant = _drive_one("ACCELERATE", "up")
+    if not env.result.ok:
+        return 0, "DUT raised: %r" % (env.result.error,)
+    drives = env.monitor.of("drive")
+    if not drives:
+        return 0, "never drove"
+    span_s = (drives[-1][0] - drives[0][0]) / 1000.0
+    if span_s > 0 and len(drives) / span_s > 15.0:
+        return 0, ("drive() called %.1f times a second with the marks in "
+                   "the loop" % (len(drives) / span_s))
+    return _check_readings(env, plant, "ACCELERATE", "up")
 
 
 # --------------------------------------------------------------------------

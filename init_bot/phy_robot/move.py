@@ -79,7 +79,35 @@
 # A light coming on is also far easier to catch than one going off, which
 # is all the main LEDs could offer.
 #
-# The Nano LED going out at the end marks the stop.
+# THE SECOND MARKS
+#
+# Counting seconds while watching a moving robot is two jobs, and students
+# were losing the count. So the Nano LED does the counting: it changes to
+# a new colour on each of the first five seconds.
+#
+#   go      white
+#   1 s     red
+#   2 s     yellow
+#   3 s     green
+#   4 s     cyan
+#   5 s     magenta
+#
+# Nobody has to look away from the stick. Read where the robot is when the
+# colour changes, and the colour itself says which reading it was, so a
+# missed one is obvious rather than silently shifting every later number
+# up by one.
+#
+# Six hues that are hard to confuse across a room, and deliberately not
+# white -- white is the go, and a mark that looked like the go would put a
+# whole run out by a second.
+#
+# The last colour stays up for three seconds after it lands, well past the
+# end of the run, and the light going OUT is what says the run is over and
+# the robot can be carried back. Before this the light went out the instant
+# the robot braked, at the one moment everybody was still writing.
+#
+# A mark lands within a tenth of a second of its second, because that is
+# how often this loop looks at the clock -- see UPDATE_MS.
 #
 # The teacher picks the mode when setting up the station. Once OK is
 # pressed the mode is fixed, and the only way back is to restart the robot.
@@ -166,6 +194,23 @@ COUNTDOWN_FLASH_MS = 200
 
 # The Nano LED is 8-bit per channel, unlike the Alvik's own lights.
 GO_RGB = (255, 255, 255)
+
+# One colour per second, for the first five seconds of every run. Whoever
+# changes these: keep them far apart as colours and keep white out of the
+# list, because white is the go and a mark that reads as the go costs a
+# whole second.
+MARK_COLORS = (
+    (1.0, (255, 0, 0)),         # red
+    (2.0, (255, 180, 0)),       # yellow
+    (3.0, (0, 255, 0)),         # green
+    (4.0, (0, 255, 255)),       # cyan
+    (5.0, (255, 0, 255)),       # magenta
+)
+
+# How long the last mark stays lit, measured from when it landed and not
+# from the end of the run. The light going out is the "over, reset it"
+# signal, so it has to come after everybody has finished writing.
+LAST_MARK_HOLD_S = 3.0
 
 
 def show(color):
@@ -306,6 +351,7 @@ def do_run(mode, direction):
     started = ticks_ms()
     readings = []
     next_reading = 0
+    next_mark = 0
 
     while True:
         if sb.held('cancel'):
@@ -324,6 +370,16 @@ def do_run(mode, direction):
             readings.append((READINGS[next_reading], gone))
             next_reading += 1
 
+        # Change colour on each of the first five seconds. A while rather
+        # than an if: if a pass ever ran long enough to skip a second, the
+        # light must end up on the colour the clock is actually at, not
+        # one behind for the rest of the run.
+        while (next_mark < len(MARK_COLORS)
+               and seconds >= MARK_COLORS[next_mark][0]):
+            mark_rgb = MARK_COLORS[next_mark][1]
+            sb.nano_led.set_rgb(mark_rgb[0], mark_rgb[1], mark_rgb[2])
+            next_mark += 1
+
         # Where the profile says it should be, how fast it should be going,
         # and a nudge for however far off it actually is.
         should_be_at = v0 * seconds + 0.5 * accel * seconds * seconds
@@ -338,8 +394,17 @@ def do_run(mode, direction):
         sleep_ms(UPDATE_MS)
 
     alvik.brake()
-    sb.nano_led.off()               # out means stopped
     sleep_ms(SETTLE_MS)
+
+    # The last colour stays up until three seconds after it landed, then
+    # out. Out is the signal to reset and go again, so it deliberately
+    # comes a while after the robot has stopped -- long enough for the
+    # last reading to be written down.
+    last_second, _ = MARK_COLORS[-1]
+    lit = hold_until(started, int((last_second + LAST_MARK_HOLD_S) * 1000))
+    sb.nano_led.off()
+    if not lit:
+        return False
 
     print(mode["name"], direction, "run:")
     for seconds, distance in readings:
