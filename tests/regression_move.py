@@ -1,4 +1,4 @@
-# tests/regression_move.py -- the physics motion program. V01
+# tests/regression_move.py -- the physics motion program. V02
 #
 # Runs init_bot/phy_robot/move.py, unmodified, inside the testbench. No
 # robot: the fakes stand in for the hardware and the program's own sleep
@@ -26,11 +26,16 @@ READINGS = (1.0, 2.0, 3.0, 4.0, 5.0, 6.0)
 
 # The three modes as the header table states them, in centimetres. Keyed
 # the way a run is chosen: mode name, then which arrow.
+#
+# CONSTANT halved on 2026-09-14 -- see move.py's header. The two
+# ACCELERATE runs are unchanged. Written out here rather than imported, on
+# purpose: a test that reads the constants from the program under test
+# cannot tell that the program changed.
 PROFILES = {
     ("STOPPED", "up"): (0.0, 0.0),
     ("STOPPED", "down"): (0.0, 0.0),
-    ("CONSTANT", "up"): (10.0, 0.0),
-    ("CONSTANT", "down"): (10.0, 0.0),
+    ("CONSTANT", "up"): (5.0, 0.0),
+    ("CONSTANT", "down"): (5.0, 0.0),
     ("ACCELERATE", "up"): (0.0, 1.5),
     ("ACCELERATE", "down"): (10.0, -1.0),
 }
@@ -40,11 +45,15 @@ PROFILES = {
 STEPS_TO = {"STOPPED": 0, "CONSTANT": 1, "ACCELERATE": 2}
 
 # A run that starts from rest tracks the profile closely. One that starts
-# at speed cannot -- the robot is not doing 10 cm/s at t=0 and spends the
-# first moment catching up. Ray's call on 2026-09-04: no rolling start,
+# at speed cannot -- the robot is not already at speed at t=0 and spends
+# the first moment catching up. Ray's call on 2026-09-04: no rolling start,
 # because a student eyeballing a moving robot is the larger error. So the
 # tolerance is per-reading and loosest at t=1, which is exactly where the
 # lag lands.
+#
+# The allowance is sized for the fastest start in the set, and that is
+# still ACCELERATE down at 10 cm/s -- halving CONSTANT on 2026-09-14 did
+# not change what this number has to cover.
 TOLERANCE_CM = 1.0
 FIRST_READING_TOLERANCE_CM = 3.0
 
@@ -249,7 +258,7 @@ def _check_readings(env, plant, mode_name, arrow, run_index=0):
 # --------------------------------------------------------------------------
 
 def test_constant_holds_its_speed():
-    """10 cm/s puts the robot on 10, 20, 30, 40, 50, 60 cm."""
+    """5 cm/s puts the robot on 5, 10, 15, 20, 25, 30 cm."""
     if not _have_dut():
         return 2, "move.py not present"
     env, plant = _drive_one("CONSTANT", "up")
@@ -535,8 +544,12 @@ def test_cancel_quits_during_a_run():
         return 0, "Cancel mid-run did not end the program"
     if not env.monitor.saw("stop"):
         return 0, "the finally block never called alvik.stop()"
+    # 25 cm is where an uninterrupted constant run is at 5 s, so anything
+    # past 17.5 means Cancel did not take. Halved with the speeds on
+    # 2026-09-14: the old 35 cm was now further than the whole run goes,
+    # so this check could no longer fail however badly Cancel behaved.
     runs = plant.runs()
-    if runs and plant.distance_at(runs[0], 5.0) > 35.0:
+    if runs and plant.distance_at(runs[0], 5.0) > 17.5:
         return 0, "the run finished anyway; Cancel was ignored"
     return 1, ""
 
@@ -757,11 +770,11 @@ def test_the_readings_check_has_teeth():
     if not _have_dut():
         return 2, "move.py not present"
     defects = dict(DEFAULT_DEFECTS)
-    defects["max_speed_cms"] = 4.0
+    defects["max_speed_cms"] = 2.0
     env, plant = _drive_one("CONSTANT", "up", defects=defects)
     status, _ = _check_readings(env, plant, "CONSTANT", "up")
     if status == 1:
-        return 0, ("a robot capped at 4 cm/s still passed the readings "
+        return 0, ("a robot capped at 2 cm/s still passed the readings "
                    "check, so the check proves nothing")
     return 1, ""
 

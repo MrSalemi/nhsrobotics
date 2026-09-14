@@ -1,12 +1,12 @@
 # move.py
-# Version: V02
+# Version: V03
 #
 # Straight-line motion for physics, in three modes, on the floor beside a
 # metre stick. Students read the robot's position off the stick at 1, 2, 3,
 # 4 and 5 seconds and graph distance against time.
 #
 #   STOPPED       red     does not move
-#   CONSTANT      green   10 cm/s
+#   CONSTANT      green   5 cm/s
 #   ACCELERATE    blue    forwards from rest, or backwards slowing down
 #
 # UP is forwards and DOWN is backwards, in every mode.
@@ -14,7 +14,7 @@
 # WHAT THE THREE MODES SHOW, AND WHY THESE NUMBERS
 #
 #   t                     1     2     3     4      5     6   seconds
-#   CONSTANT             10    20    30    40     50    60   cm
+#   CONSTANT              5    10    15    20     25    30   cm
 #   ACCELERATE  up     0.75     3  6.75    12  18.75    27   cm
 #   ACCELERATE  down    9.5    18  25.5    32   37.5    42   cm
 #
@@ -23,6 +23,13 @@
 # down gives -1 cm every time. That second difference IS the acceleration,
 # and it is the same story in all three modes, which is what makes three
 # stations worth comparing.
+#
+# CONSTANT IS 5 CM/S, NOT 10
+#
+# 2026-09-14, Ray's call after watching it on the floor: the constant-speed
+# robot ran too fast to read. Only that mode changed. The two ACCELERATE
+# runs are untouched, so the middle row and the bottom row of the table
+# above are the same numbers they have always been.
 #
 # The forwards acceleration used to be 2 cm/s^2, which put the readings on
 # the perfect squares -- 1, 4, 9, 16, 25. Readings now run to six seconds,
@@ -43,8 +50,8 @@
 # right.
 #
 # The one place this still loses is the first reading of a run that starts
-# at speed -- CONSTANT, and ACCELERATE backwards. The robot cannot be doing
-# 10 cm/s at t = 0, so it spends the first moment catching up. Ray's call,
+# at speed -- CONSTANT, and ACCELERATE backwards. The robot cannot already
+# be at speed at t = 0, so it spends the first moment catching up. Ray's call,
 # 2026-09-04: a student eyeballing a moving robot against a metre stick is
 # a bigger error than that, so no rolling start.
 #
@@ -104,8 +111,8 @@ STOPPED = {
 CONSTANT = {
     "name": "CONSTANT",
     "color": (0, 1, 0),
-    "up": (10.0, 0.0),          # 10 cm/s, no acceleration
-    "down": (10.0, 0.0),
+    "up": (5.0, 0.0),           # 5 cm/s, no acceleration
+    "down": (5.0, 0.0),
 }
 
 ACCELERATE = {
@@ -341,7 +348,7 @@ def do_run(mode, direction):
 
 
 try:
-    print("move V01 -- left/right pick a mode, OK locks it, up/down runs.")
+    print("move V03 -- left/right pick a mode, OK locks it, up/down runs.")
 
     mode = pick_mode()
     going = mode is not None
