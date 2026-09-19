@@ -300,14 +300,14 @@ Sunday morning.
 - **P01-P06 are rebuilt and in the new voice.** Version and approval status
   live in [REFERENCE.md](REFERENCE.md) in this folder. P04 is rebuilt but Ray has not
   approved it.
-- **The fall calendar was read directly** (`Red Blue 2627 Calendar.xlsx`,
-  sheet `Schedule`, column G "Robotics Red 1"). It contains exactly twelve
-  entries: Out of School 8/26; P01 Due 9/01; P02 9/08; P03 9/14; P04 9/18;
-  P05 9/25; P06 10/01; **P07 10/09; P08 10/16; P09 Sumo Battles 10/26 and
-  10/28**; End of Term 1 10/30. There is **no P10 anywhere in the calendar.**
+- **The fall calendar lives in [CALENDAR.md](CALENDAR.md)**, re-cut from the
+  live Google Sheet on 2026-09-19. Every due date from P01 on has moved at
+  least once since the first capture, most recently when the 9/18 sick day
+  pushed the column. Read CALENDAR.md, not the list that used to sit here.
+  There is still **no P10 anywhere in the sheet.**
 - **Term 1 is 22 Red class days, 8/28-10/30** — counted from the sheet.
-- **P09's build window is two periods**, 10/20 and 10/22, with the battles on
-  10/26 and 10/28. Every other project in the course also gets two periods;
+- **P09's build window is two periods**, with the battles now on 11/3 and 11/5.
+  P08 Due sits on 10/26 with no work days scheduled before it. Every other project in the course also gets two periods;
   P07 gets three.
 - **P07 is written and built.** Named *The Parking Sensor*. Guide V08 deployed to
   Project Guides at 8 pages (4 sheets), `projects/p07_parking_sensor.py`,
