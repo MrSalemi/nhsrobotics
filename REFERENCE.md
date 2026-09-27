@@ -7,7 +7,7 @@ themselves. Current state is in [PROJECT.md](PROJECT.md); settled calls are in
 
 ## Guide production
 
-Guides are **generated from the markdown in `nhsrobotics/guides/`**, and
+Guides are **generated from the markdown in `robotics/guides/`**, and
 the guide that gets printed is a **PDF**. Word is not in the chain at all: a
 `.docx` is built in a temp folder, converted, and deleted. There is no editable
 copy of a guide anywhere, which is the point — an edit that is not in the
@@ -15,7 +15,7 @@ markdown cannot survive, so it cannot be made by accident.
 
 **Content and builder are separate folders.** `guides/` holds the markdown,
 `images/`, `course.js`, `deploy.txt` and the built PDFs. `shared/` is the
-builder — `MrSalemi/vault-shared`, **shared with `nhsengineering` and
+builder — `MrSalemi/vault-shared`, **shared with `engineering` and
 `advrobotics`** — and holds no guides, no pictures and no course text.
 
 **`shared/` is a symlink to `../shared`, not a submodule.** The builder is

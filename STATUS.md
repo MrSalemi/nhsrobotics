@@ -9,7 +9,7 @@ Home folder for the robotics curriculum. Three files:
 
 ## Where these live, and why it matters
 
-**These three files live in `nhsrobotics`, the robotics repo.** Ray moved them
+**These three files live in `robotics`, the robotics repo.** Ray moved them
 here on 2026-08-09, out of `Class Development`.
 
 The reason is the rule, not the tidy-up: **`Class Development` holds more than
@@ -23,8 +23,10 @@ So: **never put `STATUS.md`, `DECISIONS.md` or `REFERENCE.md` in
 
 ## Folders involved
 
-- **`nhsrobotics`** (`~/vaults/nhsrobotics`) — **this folder, and home
-  for the project.** The code: student scaffolds in `projects/`, reference
+- **`robotics`** (`~/vaults/robotics`) — **this folder, and home
+  for the project.** The folder was renamed from `nhsrobotics`; the GitHub
+  repo is still `mrsalemi/nhsrobotics`. Older DECISIONS entries and memory
+  notes that say `nhsrobotics` mean this folder. The code: student scaffolds in `projects/`, reference
   answers in `solutions/`, the shared library in `nhs_lib/`, guide source in
   `guides/`, the builder symlinked as `shared/`, the
   testbench in `tests/`. Guides are generated from the markdown in `guides/`
@@ -49,7 +51,7 @@ So: **never put `STATUS.md`, `DECISIONS.md` or `REFERENCE.md` in
 **The Cowork project mounts exactly these three, and nothing else:**
 
 ```
-nhsrobotics          the work
+robotics             the work
 shared               the builder, reached from the vault by symlink
 Class Development    where -d deploys
 ```
@@ -76,7 +78,7 @@ mount can match. Drop it from Context if deploying becomes Ray's job alone.
 ~~Mount `~/vaults` rather than a single vault.~~ — 2026-08-30: superseded. A
 Cowork project takes several Context folders, so the three above are named
 directly. Mounting `~/vaults` also works but hands every project all five
-courses and lists `nhsrobotics` twice.
+courses and lists `robotics` twice.
 
 ## Sandbox setup
 
@@ -458,7 +460,7 @@ objects are already in `.git/modules`.
 
 **The other four vaults have not had the font and spacing change deployed**
 
-`shared` is one clone linked into all five vaults, so `nhsengineering`,
+`shared` is one clone linked into all five vaults, so `engineering`,
 `advrobotics` and `physics` pick up Carlito, Courier New and 1.2 spacing the
 moment anyone rebuilds — but their guides in Drive are still the old rendering,
 and their page counts will move when they are rebuilt. Their guide folders are
