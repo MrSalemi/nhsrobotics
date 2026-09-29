@@ -55,7 +55,7 @@ class Circle:
         """Report where the ring is from where the robot is right now.
 
         Returns three things:
-            dir  1 if the ring is off to the left
+            direction  1 if the ring is off to the left
                 -1 if the ring is off to the right
                  0 if the robot is pointed at it
             dx   how far away the ring is along one direction
@@ -100,7 +100,7 @@ try:
         alvik.set_wheels_speed(left_speed, right_speed)
 
         # GIVEN: ask the ring where it is.
-        dir, dx, dy = circle.get_bearings()
+        direction, dx, dy = circle.get_bearings()
 
         # GIVEN: a stand-in, so this file runs before you have written
         # anything. Your WORK 1 lines replace this one.
@@ -114,7 +114,7 @@ try:
         # the "pass" line.
         pass
 
-        # --- WORK 2: TURN dir INTO TWO LIGHTS ---
+        # --- WORK 2: TURN direction INTO TWO LIGHTS ---
         # A number on the screen is no use to somebody across the room
         # with a controller in their hands. Light the LED on the side the
         # ring is on, and no light at all when the robot is aimed at it.
