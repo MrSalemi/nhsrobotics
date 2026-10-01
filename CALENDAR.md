@@ -1,6 +1,6 @@
 # Robotics Red 1 — 2026-2027 Schedule
 
-*Captured from the live `Red Blue 2627 Calendar` Google Sheet (Schedule tab), re-cut 2026-09-19, Robotics Red 1 column, split out from the combined calendar so this thread only sees its own course's dates.*
+*Captured from the live `Red Blue 2627 Calendar` Google Sheet (Schedule tab), re-cut 2026-10-01, Robotics Red 1 column, split out from the combined calendar so this thread only sees its own course's dates.*
 
 For which cycle day (`R1`/`R2`/`B1`/`B2`) falls on a given date, and for holidays and breaks, see the shared calendar: `shared/nhs-information/red-blue-2026-2027-schedule-calendar.md`.
 
@@ -23,22 +23,18 @@ and deploys material; it reads this file and does not change it. See
 | 2026-09-25 (Fri) | P04 Due |
 | 2026-09-29 (Tue) | P05 work day |
 | 2026-10-01 (Thu) | P05 Due |
-| 2026-10-05 (Mon) | P06 work day |
-| 2026-10-07 (Wed) | P06 Due |
+| 2026-10-05 (Mon) | P06 work day — Magic Circle |
+| 2026-10-09 (Fri) | P06 Due |
 | 2026-10-14 (Wed) | P07 work day |
 | 2026-10-16 (Fri) | P07 work day |
-| 2026-10-19 (Mon) | P07 Due — ⚠️ see below |
-| 2026-10-26 (Mon) | P08 Due — no work days scheduled before it |
+| 2026-10-20 (Tue) | P07 Due |
+| 2026-10-22 (Thu) | P08 work day |
+| 2026-10-26 (Mon) | P08 work day |
+| 2026-10-28 (Wed) | P08 Due |
 | 2026-10-30 (Fri) | Catch up day. End of Term 1 |
 | 2026-11-03 (Tue) | P09 Sumo Battles |
 | 2026-11-05 (Thu) | P09 Sumo Battles |
 
-⚠️ **2026-10-19 is a B2 day and Robotics Red 1 does not meet.** The sheet has
-`P07 Due` in the Robotics column there anyway. The nearest red days are Wed
-10/14 and Fri 10/16 before it, and Tue 10/20 after. The sheet needs correcting;
-this file records what it says rather than guessing which day was meant.
-
-**P08 has a due date and no work days.** The Robotics column is blank between
-Fri 10/16 and Mon 10/26.
+Wed 10/7 is a Red day with no Robotics entry in the sheet.
 
 Note: tracked events stop after the P09 Sumo Battles days in early November. The source sheet has no later-term Robotics entries — Robotics and Advanced Robotics are Semester 1 only and end 2027-01-15, but the column is blank from 2026-11-06 onward.
