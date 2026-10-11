@@ -121,7 +121,7 @@ left/right and locked with OK, so one program serves three stations.
 `phy_robot/main.py` imports `move`. `marsRoverDrop.py` is still on the
 robot and is wanted later.
 
-**P00 First Lights is new, and P07-P09 have still never been run on a robot.**
+**P00 First Lights is new, and P08-P09 have still never been run on a robot.** — 2026-10-11: P07 has run on real robots, and the class has already turned it in, ahead of the sheet (Ray).
 
 P00 was written 2026-08-29 as a day-one project that needs nothing but a USB
 cable — no WiFi, no browser, no Bluetooth, no controller. Four steps in one
@@ -138,7 +138,7 @@ it is not in the calendar.
 | # | Project | State |
 |---|---|---|
 | P00 | First Lights — two LEDs, a pattern, and a USB cable | Guide V01, scaffold V01, solution V01. Deployed and on the robots. Never taught. |
-| P07 | The Parking Sensor — seconds on the OLED, blink rate from distance, then drive | Guide V08, scaffold and solution written. Never run on a robot. |
+| P07 | The Parking Sensor — seconds on the OLED, blink rate from distance, then drive | Guide V08, scaffold and solution written. Run on real robots; turned in by the class as of 2026-10-11. |
 | P08 | The Security Bot — patrol, advance, and run away. Introduces the state machine | Guide V04, scaffold V03, solution V03. Never run on a robot. |
 | P09 | The Sumo Bot — patrol the ring, charge, and never fall out | Guide V01, scaffold V01, solution V01. Never run on a robot. |
 
