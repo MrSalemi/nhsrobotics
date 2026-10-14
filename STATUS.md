@@ -107,6 +107,49 @@ command, instead of dying in a node stack trace.
 
 ## Current unit
 
+**2026-10-14: Term 2 planning has started, and the next thread builds the
+Line Racer.** The class is on P08 (work days 10/22 and 10/26, due 10/28). P09
+Sumo battles are 11/3 and 11/5, and Term 2 projects start after that. The Term
+2 ideas so far are under "What's open". Nothing is ordered or numbered yet;
+Ray: "We're too early to decide."
+
+### Line Racer — notes for the next thread
+
+What Ray asked for: build the Line Racer as the Term 2 line-following
+project. The class has done no line following this year.
+
+What already exists, oldest first:
+
+| Source | What it is |
+|---|---|
+| Drive, SY2526 Archive → Robotics → Projects → "Project xx—The Line Racer" | Last year's guide, *Project 10—The Line Racer*, plus its submission doc and `LineRacer.mov`. Two robots start at opposite ends of one taped line and race toward each other. An obstacle sits in the middle; everyone dodges LEFT so the robots pass; find the line again; first to the far end wins. Taught `move()` and `rotate()` as blocking calls for the dodge. FLEX: "Beat Mr. Salemi's robot." |
+| `nhs_lib/nhs_robotics/line_follower.py` | Current PID follower. Line position is `(r - l) / (l + c + r)`, -1 to +1; line lost when the sum is under `LINE_MIN_SUM = 150`. `KP 45`, `KD 8`, `KI 0`. Reached as `sb.follow_line(base_speed)`, which returns two wheel speeds; `sb.line_lost`, `sb.reset_line()`. Tests: `tests/regression_line_follower.py`, `tests/test_follow_line_hw.py`. |
+| Old summer-2026 arc, deleted from `projects/` 2026-08-29 | P11 Find the Line, P12 Follow the Line (students call `sb.follow_line()`; WORK 2 brakes when the line is lost; WORK 3 tunes `DRIVE_SPEED`, safe 25, race pace about 40-45, keep it at 50 or below because the motors top out at 70 RPM), P13 Dodge the Wall, P14 Line Racer (MANUAL gamepad state to the start line, TRIANGLE launches, finish bar detected when all three sensors read high, race timer, left dodge). Recover any file with `git show 09df78d^:projects/p14_line_racer.py` (also `p11_find_the_line.py`, `p12_follow_the_line.py`, `p13_dodge_the_wall.py`, and `solutions/sol1x_...`). |
+
+Things the new thread must respect:
+
+- **Line alignment is gone** (DECISIONS #55). Do not bring back "square up on
+  the line".
+- **No safety features** in projects (DECISIONS #58). The old P12's
+  "brake when the line is lost, LEDs red" WORK was framed as safety; if it
+  stays, it stays because the robot needs to find the line again, not for
+  safety.
+- **The old files use the old numbering.** "P09's pattern" or "your P13
+  FOLLOWING state" in them means the summer-2026 course, not today's P09
+  Sumo or anything numbered P13 now. The current course teaches the state
+  machine at P08 and the guard above the tree at P09 (DECISIONS #28, #30); a
+  Term 2 Line Racer builds on those rather than re-teaching them.
+- **P13's dodge is a blocking `rotate`/`move` sequence.** That matches
+  DECISIONS #28's rule: blocking is fine when nothing needs watching.
+- **Unmeasured:** `LINE_THRESHOLD = 500` in the old P14 finish detector, and
+  `LINE_MIN_SUM = 150`. DECISIONS #21 measured marker on paper at about 50
+  for white and 300-650 on the line; tape on the classroom floor has never
+  been measured.
+- **Open choice for Ray:** students write the steering themselves, or call
+  `sb.follow_line()` and spend the project on racing and tuning. Asked
+  2026-10-13, not answered.
+
+
 **This repo also carries the Physics and Engineering robot payloads.**
 `init_bot/` holds four source trees — `nhs_robot`, `phy_robot`, `eng_bot`
 and the `factory_alivk` archive — and all three live ones point `lib` at
@@ -389,6 +432,80 @@ reads better. See [DECISIONS #46](DECISIONS.md).
 
 ## What's open
 
+**Term 2 project to come back to: the Box Bulldozer** — 2026-10-13
+
+Ray: "This is a fine idea... It will be a project." Set aside to explore other
+ideas; not numbered yet. Agreed so far:
+
+- No build and no servo. The robot pushes with its face. A blade cannot work:
+  anything in front of the robot blocks the built-in front distance sensor.
+- Boxes are Ray's 20 handmade warehouse boxes with the AprilTag pulled off.
+  Enough for four rings of five.
+- Uses the P09 ring and the P09 edge guard.
+- PUSH ends when the robot sees the edge AND the box disappears from the
+  distance sensor at the same moment: box delivered. Then back off and hunt
+  again. The edge guard fires only at the edge with no box in front.
+- Competition: two robots, five boxes (odd, so no ties), timed round (about
+  90 s) that the robot ends itself with a timer. The referee counts whose
+  pushes put boxes out.
+- Open: may robots push each other? Nothing on the robot can tell a box from
+  a robot. Proposed: allowed; a robot pushed out sits out the round.
+- Test first: the box's fork opening may let the sensor read "far" while
+  touching. Face a solid side toward the robot.
+
+**Term 2: line following is in** — 2026-10-13
+
+Not done this year (P00-P09 have none). Material that already exists:
+`nhs_lib/nhs_robotics/line_follower.py` (PID, three sensors, reached as
+`sb.follow_line()`), and the old `p12_follow_the_line.py` and
+`p14_line_racer.py` scaffolds and solutions, recoverable with
+`git show 09df78d^:projects/p12_follow_the_line.py`. Last year's Drive has a
+"Project xx—The Line Racer" folder.
+
+**Term 2 idea being explored: a run of projects ending in swarm behavior** — 2026-10-13
+
+Robots message each other over ESP-NOW (direct radio, no router). Early
+stage; nothing decided. Facts so far:
+
+- ESP-NOW is on by default in MicroPython's ESP32 port (`MICROPY_PY_ESPNOW 1`
+  in `ports/esp32/mpconfigport.h`), and the `ARDUINO_NANO_ESP32` board file
+  does not turn it off. **Not yet run on one of our robots.** Check:
+  `mpremote exec "import sys, espnow; print(sys.version); print('espnow ok')"`
+- Receiving needs no peer; sending does. Every robot hears every broadcast,
+  so "is this message for me?" is part of the job.
+- ESP-NOW needs every radio on the same WiFi channel. `controller.py` and
+  `web_gamepad.py` start an access point and set no channel.
+- Sketch of a ladder, not agreed: Doorbell, Simon Says, Relay Race, Convoy,
+  then a team version of the Box Bulldozer.
+- 2026-10-13: Ray likes **Fireflies** and **Flocking** ("the emergent
+  behavior would be cool").
+  - Fireflies: each robot blinks on its own `ticks_ms` timer (P07) and
+    broadcasts on each blink. Hearing a blink nudges its own timer forward.
+    No leader; the room drifts into sync. No driving.
+  - Flocking: the robots cannot see sideways, so they tell instead. Each
+    broadcasts ID, x, y and heading about 5 times a second; each steers by
+    align, cohere and separate. The front sensor is a backup bumper.
+    **Ray OK'd a taped starting grid** so all poses share one frame.
+    Risks: pose drift over long runs, `atan2`-level math, and floor space for
+    6-8 robots.
+- Ray's ideas, 2026-10-13, both leader-driven:
+  - **Robot Rockettes**: robots side by side on the taped line, each with
+    `MY_SLOT` at the top of its file. An LED wave runs left to right, either
+    passed slot to slot by message or timed from one broadcast beat. The
+    leader broadcasts dance moves on the beat.
+  - **Aerobics class**: an instructor robot is driven by the gamepad and
+    broadcasts its wheel speeds; the class copies them. Facing the instructor
+    means left and right swap, which is the "mirror" lesson. No safety
+    features: Ray does not want them in projects (a 200 g robot). The instructor runs the
+    gamepad's access point and ESP-NOW together, so the channel must be pinned.
+  - Possible order, each giving up more central control: Rockettes or
+    Aerobics (a leader), then Fireflies (no leader, timing only), then
+    Flocking (no leader, timing plus driving). Not agreed.
+
+The warehouse bot (last year's P18) is NOT the Term 2 target. Ray, 2026-10-13:
+"I don't want to align our work on that project."
+
+
 **The constant-speed robot ran 2x fast and nobody knows why**
 
 This is the biggest open thing in the physics program. On 2026-09-14 Ray
@@ -482,10 +599,10 @@ they will not work; nobody has watched them.
 - ~~**The name.**~~ — 2026-08-09: settled, *The Parking Sensor*.
 - ~~**Does an unthrottled OLED write bog the loop or flicker?**~~ — 2026-08-09:
   moot. The screen is now written once a second by design. See [DECISIONS #18](DECISIONS.md).
-- **P07 has never been run on a robot.** The guide, scaffold and solution are all
+- ~~**P07 has never been run on a robot.**~~ — 2026-10-11: superseded. P07 has run on real robots and the class turned it in. ~~The guide, scaffold and solution are all
   written and unverified.
 
-**Line alignment — moved to Term 2, 2026-08-09**
+~~**Line alignment — moved to Term 2, 2026-08-09**~~ — 2026-10-13: dropped from the course. Ray: "Let's throw out line-alignment. It sucked." Line *following* goes into Term 2 instead. The notes below are kept for the record only.
 
 Ray ran it on hardware and it aligns well from an oblique approach and badly
 near square. The design that works stops on the CENTRE sensor and spins it
@@ -508,7 +625,7 @@ Still unresolved, for whenever it comes back:
   checks for it are written for a LATER design than that file and are skipped
   on purpose; see the guard at the top of each in `tests/regression_solutions.py`.
 
-**P07, P08 and P09 have never been run on a robot**
+**~~P07,~~ P08 and P09 have never been run on a robot** — 2026-10-11: P07 has now run on real robots.
 
 The guides, scaffolds and solutions are all written and all unverified against
 hardware. The testbench covers P08 and P09 against a modelled robot, which is
@@ -575,7 +692,7 @@ is where a student's own fourth state, and the podium, are won.
   and P09's given `edge_detected()` both call `alvik.get_line_sensors()`
   directly. Not urgent, and any `nhs_lib` change needs a test.
 
-**Deferred to October, deliberately**
+**Deferred to October, deliberately** — 2026-10-13: October is here and Term 2 planning has started; see the Term 2 notes at the top of this section and the Line Racer notes under "Current unit".
 
 P10 through P14, the home for lists, whether P10 Traffic Light survives now that
 P08 teaches state machines, where line alignment lands in Term 2, and the total

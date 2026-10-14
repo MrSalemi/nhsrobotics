@@ -732,3 +732,47 @@ noted, a decision affects both repos.
     keeps moving after magenta. Either a sixth colour or a shorter run
     settles it; both change what students are asked to measure, so it is
     Ray's. — 2026-09-14
+
+55. **Line alignment is dropped from the course.** *(affects `robotics`:
+    `solutions/sol1x_line_alignment.py` and its skipped testbench checks are
+    now dead.)* Ray: "Let's throw out line-alignment. It sucked." This
+    reverses the Term 2 placement in [#26](DECISIONS.md); #26's reason for
+    leaving Term 1 still stands. Line *following* takes its place in Term 2
+    ([#57](DECISIONS.md)). — 2026-10-13
+
+56. **Term 2 is not built toward last year's Amazon Warehouse Bot.**
+    *(affects Term 2 planning.)* Ray: "I don't want to align our work on that
+    project." Ray's own run (`InventoryBot` video, Drive, SY2526 Archive)
+    worked, but only because the pallet faced the start. `align_to_tag`
+    cannot square up to a turned pallet: the HuskyLens reports where the tag
+    is on screen and how wide it looks, not which way it faces, so the
+    routine only fixes a sideways offset, and it estimates distance from tag
+    width, which reads long at an angle. It also needs a HuskyLens per
+    robot, which the class does not have.
+
+    **Paths not taken.** A Term 2 sequence rebuilt around the warehouse
+    (servo gate, gamepad forklift, line alignment, dock-and-lift, warehouse
+    run) was proposed and rejected for the same reason. A Lego blade for a
+    pushing project was rejected because anything in front of the robot
+    blocks its built-in front distance sensor. A claw grabber was judged a
+    stretch with the class's Lego Technic kits. — 2026-10-13
+
+57. **Line following is in Term 2, and the Line Racer is the next project
+    to build.** *(affects `robotics`.)* The class has done no line following
+    this year. Last year's *Project 10—The Line Racer* and the deleted
+    summer-2026 P11-P14 files are the starting material; see "Line Racer —
+    notes for the next thread" in STATUS. Its number and place in Term 2 are
+    not decided. — 2026-10-14
+
+58. **Projects carry no safety features.** *(affects every project.)* Ray:
+    "I do not care a wit about safety in my projects. The robot weighs
+    200g." No watchdog stops, no "safety" WORKs. A behaviour like braking
+    when the line is lost is kept only if the task needs it. — 2026-10-13
+
+59. **The Box Bulldozer will be a Term 2 project.** *(affects `robotics`.)*
+    Ray: "It will be a project." Pushes boxes out of the P09 ring with the
+    robot's face, using Ray's 20 handmade warehouse boxes with the tag
+    removed. A box is delivered when the robot sees the edge and the box
+    disappears from the distance sensor at the same moment (Ray's rule).
+    Two-robot timed bouts, referee counts. Details and open questions are in
+    STATUS. — 2026-10-13
