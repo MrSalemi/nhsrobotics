@@ -43,8 +43,8 @@ ADVANCE_SPEED_CMS = 6.0
 # GIVEN: the three distances the whole story turns on, in centimeters.
 # SPOT_CM is 24 inches -- close enough to be worth investigating.
 # FLED_CM means it got away. STUBBORN_CM means it did not.
-SPOT_CM = 20.0
-FLED_CM = 30.0
+SPOT_CM = 10.0
+FLED_CM = 10.0
 STUBBORN_CM = 7.0
 
 # GIVEN: how far the retreat turns, and how far it runs afterwards.
