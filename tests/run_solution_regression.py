@@ -39,8 +39,12 @@ TESTS = [
 
     ("P08: stands its ground runs every state",
      solutions.test_p08_stands_its_ground_runs_the_whole_machine),
+    ("P08: warns 5 s, standing still, flashing",
+     solutions.test_p08_warns_for_five_seconds_standing_still_and_flashing),
     ("P08: lets a fleeing target go",
      solutions.test_p08_lets_a_fleeing_target_go),
+    ("P08: the floor is not a clown",
+     solutions.test_p08_floor_is_not_a_clown),
     ("P08: empty room never leaves patrol",
      solutions.test_p08_empty_room_never_leaves_patrol),
     ("P08: works with no screen", solutions.test_p08_works_with_no_screen_either),

@@ -1,8 +1,8 @@
 # Project 08: The Security Bot
-# Version: V03
+# Version: V04
 #
-# GOAL: A robot that patrols a room, advances on whatever it finds,
-# and either scares it off or loses its nerve and runs away.
+# GOAL: A robot that patrols a room, stops and warns off whatever it
+# finds, and runs away if the thing will not leave.
 #
 # Four states. One variable decides which one the robot is in, and
 # every other line in the loop asks that variable first.
@@ -31,25 +31,29 @@ sb = SuperBot(alvik)
 # inside quotes and nobody tells you anything -- the robot just quietly
 # matches no branch at all, which is a much worse afternoon.
 PATROLLING = "PATROLLING"
-ADVANCING = "ADVANCING"
+WARNING = "WARNING"
 TURNING = "TURNING"
 RUNNING = "RUNNING"
 
-# GIVEN: how fast the robot drives in each of its moods, in centimeters
-# per second. Menacing is slow, on purpose.
+# GIVEN: how fast the robot patrols, in centimeters per second.
 PATROL_SPEED_CMS = 10.0
-ADVANCE_SPEED_CMS = 6.0
 
-# GIVEN: the three distances the whole story turns on, in centimeters.
-# SPOT_CM is 24 inches -- close enough to be worth investigating.
-# FLED_CM means it got away. STUBBORN_CM means it did not.
+# GIVEN: the two distances the story turns on, in centimeters.
+# With nothing in front of it, the sensor sees the floor at about 19 cm,
+# so both of these sit below that.
+# Closer than SPOT_CM: something is there. Past FLED_CM: it left.
 SPOT_CM = 10.0
-FLED_CM = 10.0
-STUBBORN_CM = 7.0
+FLED_CM = 15.0
 
-# GIVEN: how far the retreat turns, and how far it runs afterwards.
-# 135 and not 180, on purpose. The guide explains why, and it is a
-# better reason than it looks.
+# GIVEN: how long the warning lasts, and how fast the red light flashes,
+# in milliseconds.
+WARNING_MS = 5000
+FLASH_MS = 250
+
+# GIVEN: the retreat. How far it backs up, how far it turns, and how
+# far it runs afterwards. 135 and not 180, on purpose. The guide
+# explains why, and it is a better reason than it looks.
+BACK_UP_CM = 10.0
 RETREAT_TURN_DEG = 135.0
 RUN_CM = 50.0
 
@@ -61,6 +65,12 @@ current_state = PATROLLING
 # when it actually changes. Same trick as the clock in P07.
 last_state = ""
 
+# GIVEN: when the warning started, and the flash. The flash is your P07
+# blink: the last time the light changed, and whether it is on.
+warning_start = time.ticks_ms()
+last_flash = time.ticks_ms()
+red_is_on = False
+
 try:
     # GIVEN: Cancel on the robot ends the run.
     while not sb.held('cancel'):
@@ -68,6 +78,9 @@ try:
         # GIVEN: how much room is in front of the robot this time round.
         # With nothing in front of it, this reads 999.
         distance = sb.get_closest_distance()
+
+        # GIVEN: what time it is, once per pass, the same as P07.
+        now = time.ticks_ms()
 
         # GIVEN: the state on the screen, so you can always see what the
         # robot thinks it is doing. When something goes wrong, look here
@@ -88,22 +101,24 @@ try:
         # is, then delete the "pass" line.
         pass
 
-        # --- WORK 2: ADVANCING ---
-        # An "elif" branch, ABOVE the else you just wrote. Red lights,
-        # and drive forward slowly -- menacing is deliberate, not fast.
+        # --- WORK 2: WARNING ---
+        # First, add one line to your WORK 1 test, so the clock starts
+        # the moment the robot spots something.
+        # Then an "elif" branch, ABOVE the else you just wrote. Stand
+        # still, and flash the red lights the way P07 blinked them.
         # This state has TWO ways out, so its branch ends with two
         # tests, not one:
-        #   the target fled       -- further away than FLED_CM
-        #   the target did not    -- closer than STUBBORN_CM
+        #   it left               -- further away than FLED_CM
+        #   it did not            -- WARNING_MS has gone by
         # One of them goes back to patrolling. The other one starts the
         # retreat.
 
         # --- WORK 3: TURNING and RUNNING ---
         # Two more "elif" branches, still above the else, and together
-        # they are the retreat. TURNING turns the robot away, then hands
-        # over to RUNNING. RUNNING drives off, then goes back on patrol.
-        # These two are shorter than you expect -- three lines each --
-        # and the guide explains why they are allowed to be.
+        # they are the retreat. TURNING backs up and turns the robot
+        # away, then hands over to RUNNING. RUNNING drives off, then goes
+        # back on patrol. These two are shorter than you expect, and the
+        # guide explains why they are allowed to be.
 
         # GIVEN: a moment for the robot to get on with its own work.
         # Nothing in this project is timed by this line.

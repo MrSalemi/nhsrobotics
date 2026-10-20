@@ -1,4 +1,4 @@
-# tests/regression_solutions.py -- solution-level regression. V02
+# tests/regression_solutions.py -- solution-level regression. V03
 #
 # Runs the real files out of solutions/, unmodified, inside the testbench.
 # Every test returns (status, message) the way the rest of the suite does:
@@ -24,7 +24,12 @@ LINE_PARKED = ("parked for Term 2; the file on disk is an earlier design "
 LINE_STATES = ("WATCH_DRIVE", "WATCH_SEARCH", "WATCH_ALIGN", "WATCH_APPROACH")
 
 P08 = "sol08_security_bot.py"
-P08_STATES = ("PATROLLING", "ADVANCING", "TURNING", "RUNNING")
+P08_STATES = ("PATROLLING", "WARNING", "TURNING", "RUNNING")
+
+# What the robot's distance sensor reads with nothing in front of it,
+# measured by Ray on the classroom floor, 2026-10-20.
+FLOOR_ECHO_CM = 19.0
+P08_WARNING_MS = 5000
 
 P09 = "sol09_sumo_bot.py"
 P09_STATES = ("PATROLLING", "TURNING", "ATTACKING")
@@ -247,39 +252,141 @@ def _ran_without_raising(env):
     return 1, ""
 
 
+FLOOR = dict(DEFAULT_DEFECTS, floor_echo_cm=FLOOR_ECHO_CM)
+
+
+def _state_spans(monitor):
+    """(state, entered_ms, left_ms) for each state the screen showed, in
+    order. The last one is left when the run ends."""
+    spans = []
+    for stamp, _kind, args in monitor.of("display"):
+        name = args[1].strip()
+        if not name.isupper():
+            continue
+        if spans and spans[-1][0] == name:
+            continue
+        if spans:
+            spans[-1][2] = stamp
+        spans.append([name, stamp, None])
+    if spans:
+        spans[-1][2] = monitor.clock.now_ms
+    return spans
+
+
+def _first_span(monitor, state):
+    for span in _state_spans(monitor):
+        if span[0] == state:
+            return span
+    return None
+
+
 def test_p08_stands_its_ground_runs_the_whole_machine():
     """A target that never moves has to walk the robot through every
-    state: spot it, advance, fail to scare it, turn, run, peek."""
+    state: spot it, warn it, fail to scare it, turn, run, peek. The floor
+    echo is on, because that is the classroom."""
     if not _have(P08):
         return 2, "%s not written yet" % P08
-    env = _run_security_bot(Target(80.0, 0.0, "stand"), watchdog_ms=40000)
+    env = _run_security_bot(Target(80.0, 0.0, "stand"), watchdog_ms=40000,
+                            defects=FLOOR)
     states = env.monitor.states_shown()
     return _first_failure(
         _ran_without_raising(env),
         scoreboard.check_reached_states(env.monitor, P08_STATES),
-        (1, "") if states[:3] == ["PATROLLING", "ADVANCING", "TURNING"]
-        else (0, "went %s, expected patrol then advance then turn"
+        (1, "") if states[:3] == ["PATROLLING", "WARNING", "TURNING"]
+        else (0, "went %s, expected patrol then warn then turn"
               % " -> ".join(states[:3])),
+        _backs_up_before_turning(env.monitor),
         scoreboard.check_stopped_cleanly(env.monitor),
     )
 
 
-def test_p08_lets_a_fleeing_target_go():
-    """Back away faster than the robot closes and it gives up. It must go
-    back to patrolling rather than retreating -- nothing frightened it."""
+def _backs_up_before_turning(monitor):
+    """The retreat starts by reversing away from the clown, so the turn
+    does not swing a corner into it."""
+    blocking = [(t[1], t[2][0]) for t in monitor.transactions
+                if t[1] in ("move", "rotate")]
+    if not blocking:
+        return 0, "never retreated"
+    kind, amount = blocking[0]
+    if kind != "move" or amount >= 0:
+        return 0, "retreat began with %s(%s), expected a move backwards" % (
+            kind, amount)
+    if len(blocking) < 2 or blocking[1][0] != "rotate":
+        return 0, "did not turn after backing up"
+    return 1, ""
+
+
+def test_p08_warns_for_five_seconds_standing_still_and_flashing():
+    """A clown that will not leave gets the full warning: about five
+    seconds, the robot standing still, the red light going on and off,
+    and no move() or rotate() until it is over."""
     if not _have(P08):
         return 2, "%s not written yet" % P08
-    # Nerve breaks at 40 cm, which is well inside the 60 cm the robot
-    # starts advancing at -- so the advance is real before the target
-    # moves, and the two thresholds cannot race each other.
+    env = _run_security_bot(Target(80.0, 0.0, "stand"), watchdog_ms=40000,
+                            defects=FLOOR)
+    span = _first_span(env.monitor, "WARNING")
+    if span is None:
+        return 0, "never warned: %s" % " -> ".join(env.monitor.states_shown())
+    _name, start, end = span
+    lasted = end - start
+    if not P08_WARNING_MS <= lasted <= P08_WARNING_MS + 300:
+        return 0, "warned for %d ms, expected about %d" % (lasted,
+                                                          P08_WARNING_MS)
+
+    inside = [t for t in env.monitor.transactions if start <= t[0] < end]
+    blocking = [t[1] for t in inside if t[1] in ("move", "rotate")]
+    if blocking:
+        return 0, "called %s during the warning" % ", ".join(blocking)
+    moving = [t[2] for t in inside if t[1] == "drive" and t[2] != (0, 0)]
+    if moving:
+        return 0, "drove at %s during the warning" % (moving[0],)
+
+    colours = [t[2][1] for t in inside if t[1] == "led" and t[2][0] == "left"]
+    changes = sum(1 for a, b in zip(colours, colours[1:]) if a != b)
+    if (1, 0, 0) not in colours:
+        return 0, "red never came on during the warning"
+    if any(c not in ((1, 0, 0), (0, 0, 0)) for c in colours):
+        return 0, "showed a colour other than red or off: %s" % (
+            sorted(set(colours)),)
+    if changes < 10:
+        return 0, "light changed %d times in the warning; it should flash" % (
+            changes)
+    return 1, ""
+
+
+def test_p08_lets_a_fleeing_target_go():
+    """The clown backs off during the warning and the robot goes back on
+    patrol -- nothing frightened it, so no retreat. With the floor echo
+    on, a clown that has gone reads about 19 cm, not 999, so this is the
+    check that FLED_CM sits below the floor."""
+    if not _have(P08):
+        return 2, "%s not written yet" % P08
+    # The clown notices only once the robot is inside SPOT_CM and
+    # rolling to a stop, so the warning is real before it moves.
     env = _run_security_bot(
-        Target(80.0, 0.0, "flee", speed_cms=25.0, notice_cm=40.0),
-        watchdog_ms=25000)
+        Target(80.0, 0.0, "flee", speed_cms=25.0, notice_cm=9.0),
+        watchdog_ms=25000, defects=FLOOR)
     states = env.monitor.states_shown()
-    if states[:3] != ["PATROLLING", "ADVANCING", "PATROLLING"]:
-        return 0, "went %s, expected patrol then advance then patrol" % (
+    if states[:3] != ["PATROLLING", "WARNING", "PATROLLING"]:
+        return 0, "went %s, expected patrol then warn then patrol" % (
             " -> ".join(states[:4]))
+    if env.monitor.saw("rotate") or env.monitor.saw("move"):
+        return 0, "retreated from a clown that left"
     return _ran_without_raising(env)
+
+
+def test_p08_floor_is_not_a_clown():
+    """The sensor sees the floor at about 19 cm. An empty classroom must
+    never make the robot warn."""
+    if not _have(P08):
+        return 2, "%s not written yet" % P08
+    env = _run_security_bot(None, watchdog_ms=20000, defects=FLOOR)
+    states = env.monitor.states_shown()
+    if states != ["PATROLLING"]:
+        return 0, "left patrol in an empty room with the floor at %.0f cm: %s" % (
+            FLOOR_ECHO_CM, " -> ".join(states[:6]))
+    return _first_failure(_ran_without_raising(env),
+                          scoreboard.check_stopped_cleanly(env.monitor))
 
 
 def test_p08_empty_room_never_leaves_patrol():

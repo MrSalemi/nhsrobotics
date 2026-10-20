@@ -1,4 +1,4 @@
-# tests/tb/plant.py -- the reference model of the robot's world. V02
+# tests/tb/plant.py -- the reference model of the robot's world. V03
 #
 # The plant owns the truth: where the robot really is, where the line
 # really is, what the sensors would really report. The DUT never sees any
@@ -77,6 +77,10 @@ DEFAULT_DEFECTS = {
     "yaw_offset_deg": 0.0,      # where the IMU happens to start
     "oled_present": True,       # a loose OLED silently shows nothing
     "max_speed_cms": 11.5,      # 70 RPM on a 34 mm wheel, after drive_scale
+    # The ToF sees the floor. Ray, 2026-10-20: with nothing in front of
+    # it the robot reads an object about 19 cm away. None means no floor
+    # echo, so an empty view reads 999 the way it always did.
+    "floor_echo_cm": None,
 }
 
 
@@ -314,7 +318,16 @@ class Plant:
             for p in self.sensor_positions())
 
     def get_distance(self):
-        """Five ToF zones: a target, a wall straight ahead, or nothing."""
+        """Five ToF zones: a target, a wall straight ahead, or nothing.
+        With floor_echo_cm set, the floor stands in for nothing, and
+        anything further away than the floor is hidden behind it."""
+        readings = self._get_distance_clean()
+        floor = self.defects.get("floor_echo_cm")
+        if floor is None:
+            return readings
+        return tuple(floor if (r <= 0 or r > floor) else r for r in readings)
+
+    def _get_distance_clean(self):
         if self.target is not None:
             gap = self._gap_to_target()
             if gap is None:
