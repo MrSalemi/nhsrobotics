@@ -74,7 +74,7 @@ try:
         # before you look anywhere else.
         if current_state != last_state:
             last_state = current_state
-            sb.update_display("Security:", current_state)
+            sb.update_display("Security:", current_state, distance)
 
         # --- WORK 1: PATROLLING, and the catch-all ---
         # Write the branch that runs while the robot is on patrol: green
