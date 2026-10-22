@@ -54,8 +54,10 @@ LOST_CM = 5.0
 # whole thing again.
 BACK_UP_CM = 10.0
 
-# --- WORK 3: YOUR TURN ANGLE ---
-# Give the turn after the rim its own name here, in degrees.
+# GIVEN: how far to turn after backing off the rim, in degrees. 135 is
+# P08's angle, for P08's reason. Change it if you like -- it decides
+# where your robot goes for the whole match.
+TURN_DEG = 135
 
 # GIVEN: the ring floor is black and the rim is white, and the line
 # sensors read HIGH on black. So the rim is a reading that DROPS. If the
@@ -138,8 +140,8 @@ try:
 
         # --- WORK 3: THE EDGE GUARD ---
         # Two lines, and they go right here: above the screen and above
-        # the tree. Use edge_detected(). The guide says why it cannot go
-        # inside a branch.
+        # the tree. Use edge_detected() to send the robot to TURNING. The
+        # guide says why it cannot go inside a branch.
 
         # GIVEN: the state on the screen. It sits BELOW the guard on
         # purpose, so that a state the guard has just set gets shown.
@@ -147,23 +149,19 @@ try:
             last_state = current_state
             sb.update_display("Sumo:", current_state)
 
-        # --- WORK 1: PATROLLING, and the catch-all ---
-        # P08's pattern: actions on top, the transition at the bottom.
-        # Green light, both wheels at PATROL_RPM, and the test that
-        # starts a charge. Put it where the "pass" is, then delete the
-        # "pass" line. Write the catch-all "else" at the end of the whole
-        # chain too -- you want it from your first run.
+        # --- WORK 1: PATROLLING, TURNING, and the catch-all ---
+        # P08's patterns. PATROLLING: green, both wheels at PATROL_RPM,
+        # and the test that starts a charge. TURNING: P08's retreat --
+        # blue, back up, turn TURN_DEG, then straight back to
+        # patrolling; there is no RUNNING here. Then the catch-all
+        # "else" at the end of the chain. Put all three where the "pass"
+        # is, then delete the "pass" line.
         pass
 
         # --- WORK 2: ATTACKING ---
         # An "elif", ABOVE the else. Steady red, both wheels at
         # ATTACK_RPM, and one way out: further than LOST_CM goes back to
         # patrolling.
-
-        # --- WORK 3: TURNING ---
-        # An "elif", ABOVE the else. P08's retreat: blue, back up, turn
-        # your own angle. Then straight back to patrolling -- there is no
-        # RUNNING here.
 
         # GIVEN: a moment for the robot to get on with its own work.
         time.sleep_ms(50)

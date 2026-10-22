@@ -5,8 +5,9 @@
 # outside the tree.
 #
 #   PATROLLING  green, patrol speed, hunting                    WORK 1
+#   TURNING     blue, back off the rim and turn away            WORK 1
 #   ATTACKING   red, full speed into whatever is in front       WORK 2
-#   TURNING     blue, back off the rim and turn away            WORK 3
+#   the edge guard, above the tree                              WORK 3
 #
 # THE TERM-ENDING PROJECT. The guide prints no P09 code. Each WORK shows
 # a pattern the way an earlier project taught it -- P08's branch shape,
@@ -65,9 +66,8 @@ LOST_CM = 5.0
 # robot turns with a sensor still on the rim and guards again forever.
 BACK_UP_CM = 10.0
 
-# WORK 3: the student's own angle. P08's 135 is one answer: 180 runs the
-# same diameter forever, a quarter turn runs along the rim and back into
-# it.
+# Given, P08's angle: 180 runs the same diameter forever, a quarter turn
+# runs along the rim and back into it. Students may change it.
 TURN_DEG = 135
 
 # Black floor reads high, white rim reads low, so the rim is a reading
@@ -157,6 +157,15 @@ try:
             if distance < ATTACK_CM:
                 current_state = ATTACKING
 
+        # --- WORK 1: TURNING ---
+        # Both moves block, and the robot is leaving, so there is
+        # nothing it needs to watch while they run.
+        elif current_state == TURNING:
+            sb.light_both_leds(0, 0, 1)
+            alvik.move(-BACK_UP_CM)
+            alvik.rotate(TURN_DEG)
+            current_state = PATROLLING
+
         # --- WORK 2: ATTACKING ---
         elif current_state == ATTACKING:
             sb.light_both_leds(1, 0, 0)
@@ -167,15 +176,6 @@ try:
             # guard ends the attack instead, at the rim.
             if distance > LOST_CM:
                 current_state = PATROLLING
-
-        # --- WORK 3: TURNING ---
-        # Both moves block, and the robot is leaving, so there is
-        # nothing it needs to watch while they run.
-        elif current_state == TURNING:
-            sb.light_both_leds(0, 0, 1)
-            alvik.move(-BACK_UP_CM)
-            alvik.rotate(TURN_DEG)
-            current_state = PATROLLING
 
         # --- The catch-all ---
         else:
