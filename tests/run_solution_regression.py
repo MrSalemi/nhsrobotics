@@ -57,6 +57,10 @@ TESTS = [
      solutions.test_p09_waits_for_the_start_button),
     ("P09: Cancel stops it before the match",
      solutions.test_p09_cancel_stops_it_before_the_match),
+    ("P09: the floor is not an opponent",
+     solutions.test_p09_floor_is_not_an_opponent),
+    ("P09: a wobble does not end the charge",
+     solutions.test_p09_a_wobble_does_not_end_the_charge),
 
     ("Line: squares up (directed)", solutions.test_line_squares_up_from_one_approach),
     ("Line: squares up (40 generated approaches)",

@@ -76,7 +76,8 @@ try:
     while not sb.held('cancel'):
 
         # GIVEN: how much room is in front of the robot this time round.
-        # With nothing in front of it, this reads 999.
+        # With nothing in front of it, the sensor sees the floor and
+        # reads about 19 cm.
         distance = sb.get_closest_distance()
 
         # GIVEN: what time it is, once per pass, the same as P07.

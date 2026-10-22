@@ -1,6 +1,6 @@
 # tests/run_host_regression.py
 #
-# The laptop half of the regression suite. V01
+# The laptop half of the regression suite. V02
 #
 #     python3 tests/run_host_regression.py
 #
@@ -58,6 +58,15 @@ def main():
                     regression_initbot.test_every_script_parses_under_bash)
     runner.run_test("Sync: the real source trees are intact",
                     regression_initbot.test_the_real_source_trees_are_intact)
+
+    print("\n--- Running Guide Tests ---")
+    import regression_guides
+    runner.run_test("Guides: P09's quoted patterns match their projects",
+                    regression_guides.test_quoted_patterns_match_their_projects)
+    runner.run_test("Guides: P09's named constants exist",
+                    regression_guides.test_named_constants_exist)
+    runner.run_test("Guides: the guide checks can fail",
+                    regression_guides.test_the_checks_can_fail)
 
     print("\n--- Running Solution Tests (testbench) ---")
     import regression_solutions

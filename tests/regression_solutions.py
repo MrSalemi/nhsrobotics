@@ -1,4 +1,4 @@
-# tests/regression_solutions.py -- solution-level regression. V03
+# tests/regression_solutions.py -- solution-level regression. V04
 #
 # Runs the real files out of solutions/, unmodified, inside the testbench.
 # Every test returns (status, message) the way the rest of the suite does:
@@ -518,6 +518,57 @@ def test_p09_cancel_stops_it_before_the_match():
         return 0, "moved %.1f cm with Cancel held" % env.plant.distance_travelled_cm
     return _first_failure(_ran_without_raising(env),
                           scoreboard.check_stopped_cleanly(env.monitor))
+
+
+def test_p09_floor_is_not_an_opponent():
+    """The sensor sees the floor. An empty ring must never start a
+    charge, however the floor reads."""
+    if not _have(P09):
+        return 2, "%s not written yet" % P09
+    env = _run_sumo(watchdog_ms=30000, defects=FLOOR)
+    if "ATTACKING" in env.monitor.states_shown():
+        return 0, "charged an empty ring with the floor at %.0f cm" % (
+            FLOOR_ECHO_CM)
+    return _first_failure(_ran_without_raising(env),
+                          scoreboard.check_stayed_in_ring(env))
+
+
+class _CrossThenWobble:
+    """Presses CROSS, then once the charge has started, eases the
+    opponent from 2 cm to 4 cm off the nose: past ATTACK_CM, inside
+    LOST_CM. The touch() hook is polled every pass by sb.held('cancel'),
+    which makes it the testbench's hand on the opponent."""
+
+    def __init__(self, at_ms=1500, gap_cm=4.0):
+        self.at_ms = at_ms
+        self.gap_cm = gap_cm
+
+    def button(self, name, env):
+        return name == "cross" and env.clock.now_ms >= 200
+
+    def touch(self, name, env):
+        if env.clock.now_ms >= self.at_ms and env.plant.target is not None:
+            env.plant.target.gap_cm = self.gap_cm
+        return False
+
+
+def test_p09_a_wobble_does_not_end_the_charge():
+    """P08's gap, reused. A charge starts inside ATTACK_CM and ends past
+    LOST_CM, so an opponent that slips to 4 cm is still being shoved.
+    With one threshold the robot drops to patrol speed mid-shove."""
+    if not _have(P09):
+        return 2, "%s not written yet" % P09
+    env = _run_sumo(target=Target(10.0, 0.0, "glued", gap_cm=2.0),
+                    stimulus=_CrossThenWobble(), watchdog_ms=30000)
+    states = env.monitor.states_shown()
+    if "ATTACKING" not in states:
+        return 0, "never charged a target 2 cm from its nose"
+    after = states[states.index("ATTACKING") + 1:]
+    if not after or after[0] != "TURNING":
+        return 0, "went %s; a 4 cm wobble should not end the charge" % (
+            " -> ".join(states[:5]))
+    return _first_failure(_ran_without_raising(env),
+                          scoreboard.check_stayed_in_ring(env))
 
 
 # --------------------------------------------------------------------------

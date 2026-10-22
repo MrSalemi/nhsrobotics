@@ -1,26 +1,23 @@
 # Project 09: The Sumo Bot
-# Version: V01
+# Version: V02
 #
 # GOAL: A robot that patrols the sumo ring, backs off when it reaches
 # the white rim, and charges anything it finds in front of it.
 #
-# THIS ONE IS DIFFERENT. Nobody is going to hand you the lines. Every
-# piece of this robot is something you have already built in an earlier
-# project, and the guide shows you the code you wrote to solve it the
-# first time. Your job is to work out what has to change.
-#
-# You type the code yourself, from the guide. Thonny does the indenting.
+# THIS IS THE TERM-ENDING PROJECT. You put together the skills from
+# P01 through P08. The guide shows you each pattern the way an earlier
+# project taught it, and you write the P09 version yourself. There is
+# one new idea: the edge guard.
 #
 # SAVE YOUR COPY FIRST: In Thonny, use File > Save As, pick the Alvik
 # (MicroPython device), and save this file as /workspace/p09.py. From
 # now on, open and edit THAT copy -- files outside /workspace get
 # overwritten whenever the projects are updated.
 #
-# FLEX (the A+): finish on the podium.
+# FLEX (the A+): win the tournament.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot, RobotGamepad
-import random
 import time
 
 # GIVEN: the robot and the suit.
@@ -28,36 +25,42 @@ alvik = ArduinoAlvik()
 alvik.begin()
 sb = SuperBot(alvik)
 
-# GIVEN: the names of the three states you are given. Spelled once each,
-# used by name everywhere else. Misspell the name and Python stops and
-# tells you where; misspell a word inside quotes and nobody tells you
-# anything at all.
+# GIVEN: the names of the three states, spelled once each, the same as
+# P08. Misspell the name and Python stops and tells you where; misspell
+# a word inside quotes and nobody tells you anything at all.
 #
 # You are allowed more states than these. The three below make a robot
 # that plays. They do not make a robot that wins.
 PATROLLING = "PATROLLING"
-TURNING = "TURNING"
 ATTACKING = "ATTACKING"
+TURNING = "TURNING"
 
-# GIVEN: wheel speeds, in RPM. 70 is as fast as these motors go, so the
-# charge is everything the robot has and the patrol is a walk.
+# GIVEN: wheel speeds, in RPM, the same as P03. 70 is as fast as these
+# motors go, so the charge is everything the robot has.
 PATROL_RPM = 50
 ATTACK_RPM = 70
 
-# GIVEN: an opponent this close in front is close enough to charge.
-# 3 cm is not a round number by accident -- the ring floor gives the
-# distance sensor false readings from about 5 cm out, so the charge is
-# set underneath the lies.
+# GIVEN: the two limits of a charge, in centimeters, with a gap between
+# them the way P08 had one. Closer than ATTACK_CM: charge. Further than
+# LOST_CM: it got away. 3 cm is not a round number by accident -- the
+# ring floor gives the distance sensor false readings from about 5 cm
+# out, so the charge is set underneath the lies.
 ATTACK_CM = 3.0
+LOST_CM = 5.0
 
-# GIVEN: how far to back off the rim before turning. It has to be more
-# than the robot's nose has already crept over the white, or it turns
-# with a sensor still on the rim and does the whole thing again.
-BACKUP_CM = 10.0
+# GIVEN: how far to back off the rim before turning, the same name as
+# P08. It has to be more than the robot's nose has already crept over
+# the white, or it turns with a sensor still on the rim and does the
+# whole thing again.
+BACK_UP_CM = 10.0
+
+# --- WORK 3: YOUR TURN ANGLE ---
+# Give the turn after the rim its own name here, in degrees.
 
 # GIVEN: the ring floor is black and the rim is white, and the line
-# sensors read HIGH on black. So the rim is a reading that DROPS.
-# Measure it on the real ring before you trust it.
+# sensors read HIGH on black. So the rim is a reading that DROPS. If the
+# robot drives over the white with your guard in place, this number
+# does not match the ring.
 EDGE_THRESHOLD = 200
 
 
@@ -85,16 +88,16 @@ def edge_detected():
 def waiting_for_gamepad(gamepad):
     """Hold the robot still until its driver presses CROSS.
 
-    Building the gamepad, on the line above, already blinked the lights
-    yellow while the controller found the robot. From here they blink
-    green: connected, and waiting for the match to start.
+    Building the gamepad, further down, already blinked the lights
+    yellow until the controller connected. From here they blink green:
+    connected, and waiting for the match to start.
 
     Nothing in the match reads the gamepad. It exists to start you, and
     once you are started a flat controller battery cannot cost you a
     bout.
 
-    Cancel gets out of here too, so a robot waiting for a controller it
-    is never going to get can still be stopped.
+    Cancel gets out of here too, so a robot that is connected but never
+    gets its start can still be stopped.
     """
     lights_on = False
     last_blink = time.ticks_ms()
@@ -133,11 +136,10 @@ try:
         # GIVEN: how much room is in front of the robot this time round.
         distance = sb.get_closest_distance()
 
-        # --- WORK 2: THE EDGE GUARD ---
-        # One test, and it does NOT belong in the tree below. Whatever
-        # the robot thought it was doing, reaching the rim outranks it.
-        # Use edge_detected(). Two lines, and they go right here --
-        # above the screen and above the tree. The guide says why.
+        # --- WORK 3: THE EDGE GUARD ---
+        # Two lines, and they go right here: above the screen and above
+        # the tree. Use edge_detected(). The guide says why it cannot go
+        # inside a branch.
 
         # GIVEN: the state on the screen. It sits BELOW the guard on
         # purpose, so that a state the guard has just set gets shown.
@@ -145,22 +147,23 @@ try:
             last_state = current_state
             sb.update_display("Sumo:", current_state)
 
-        # --- WORK 1: PATROLLING ---
-        # The branch that hunts: patrol speed, its own light, and the
-        # test that starts a charge. Put it where the "pass" is, then
-        # delete the "pass" line. Write the catch-all "else" at the end
-        # of the whole chain now too -- you want it from your first run.
+        # --- WORK 1: PATROLLING, and the catch-all ---
+        # P08's pattern: actions on top, the transition at the bottom.
+        # Green light, both wheels at PATROL_RPM, and the test that
+        # starts a charge. Put it where the "pass" is, then delete the
+        # "pass" line. Write the catch-all "else" at the end of the whole
+        # chain too -- you want it from your first run.
         pass
 
-        # --- WORK 2: TURNING ---
-        # Back off the rim, turn, and get back to work. How far you turn
-        # is yours to decide, and it is worth more thought than it
-        # looks: it is the only thing that decides where your robot goes
-        # for the rest of the match.
+        # --- WORK 2: ATTACKING ---
+        # An "elif", ABOVE the else. Steady red, both wheels at
+        # ATTACK_RPM, and one way out: further than LOST_CM goes back to
+        # patrolling.
 
-        # --- WORK 3: ATTACKING ---
-        # Full speed, its own light, and the way back to patrolling when
-        # there is nothing left in front of you.
+        # --- WORK 3: TURNING ---
+        # An "elif", ABOVE the else. P08's retreat: blue, back up, turn
+        # your own angle. Then straight back to patrolling -- there is no
+        # RUNNING here.
 
         # GIVEN: a moment for the robot to get on with its own work.
         time.sleep_ms(50)
