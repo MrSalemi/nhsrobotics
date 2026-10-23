@@ -5,8 +5,9 @@
 # outside the tree.
 #
 #   PATROLLING  green, patrol speed, hunting                    WORK 1
-#   TURNING     blue, back off the rim and turn away            WORK 1
-#   ATTACKING   red, full speed into whatever is in front       WORK 2
+#   ATTACKING   red, full speed into whatever is in front       WORK 1
+#   TURNING     blue, back off the rim and turn away            WORK 2
+#   the catch-all else, last in the chain                       WORK 2
 #   the edge guard, above the tree                              WORK 3
 #
 # THE TERM-ENDING PROJECT. The guide prints no P09 code. Each WORK shows
@@ -44,7 +45,7 @@
 import time
 
 from arduino_alvik import ArduinoAlvik
-from nhs_robotics import SuperBot, RobotGamepad
+from nhs_robotics import SuperBot
 
 alvik = ArduinoAlvik()
 alvik.begin()
@@ -94,43 +95,18 @@ def edge_detected():
             or right < EDGE_THRESHOLD)
 
 
-def waiting_for_gamepad(gamepad):
-    """Hold the robot still until its driver presses CROSS.
-
-    RobotGamepad's constructor already blinks yellow until the
-    controller connects, and Cancel cannot get out of that wait. This
-    covers the second half: blinking green while the robot waits for the
-    start of the match.
-
-    The blink is not timed by a sleep, because the button has to stay
-    responsive -- pressed() only sees a push if update() is called
-    often enough to catch it.
-
-    Cancel gets out of here, so a connected robot that never gets its
-    start can still be stopped.
-    """
-    lights_on = False
-    last_blink = time.ticks_ms()
-    while not gamepad.pressed('cross') and not sb.held('cancel'):
-        gamepad.update()
-        if time.ticks_diff(time.ticks_ms(), last_blink) > 300:
-            last_blink = time.ticks_ms()
-            lights_on = not lights_on
-            if lights_on:
-                sb.light_both_leds(0, 1, 0)
-            else:
-                sb.light_both_leds(0, 0, 0)
-        time.sleep_ms(20)
-    sb.light_both_leds(0, 0, 0)
-
 
 current_state = PATROLLING
 last_state = ""
 
-gamepad = RobotGamepad(alvik)
-
 try:
-    waiting_for_gamepad(gamepad)
+    # P04's wait for OK. No gamepad anywhere (DECISIONS #7): nothing to
+    # pair on tournament day, and no flat controller to cost a bout.
+    while not sb.held('ok') and not sb.held('cancel'):
+        sb.light_both_leds(1, 1, 1)
+        time.sleep(0.25)
+        sb.light_both_leds(0, 0, 0)
+        time.sleep(0.25)
 
     while not sb.held('cancel'):
 
@@ -157,16 +133,7 @@ try:
             if distance < ATTACK_CM:
                 current_state = ATTACKING
 
-        # --- WORK 1: TURNING ---
-        # Both moves block, and the robot is leaving, so there is
-        # nothing it needs to watch while they run.
-        elif current_state == TURNING:
-            sb.light_both_leds(0, 0, 1)
-            alvik.move(-BACK_UP_CM)
-            alvik.rotate(TURN_DEG)
-            current_state = PATROLLING
-
-        # --- WORK 2: ATTACKING ---
+        # --- WORK 1: ATTACKING ---
         elif current_state == ATTACKING:
             sb.light_both_leds(1, 0, 0)
             alvik.set_wheels_speed(ATTACK_RPM, ATTACK_RPM)
@@ -177,7 +144,16 @@ try:
             if distance > LOST_CM:
                 current_state = PATROLLING
 
-        # --- The catch-all ---
+        # --- WORK 2: TURNING ---
+        # Both moves block, and the robot is leaving, so there is
+        # nothing it needs to watch while they run.
+        elif current_state == TURNING:
+            sb.light_both_leds(0, 0, 1)
+            alvik.move(-BACK_UP_CM)
+            alvik.rotate(TURN_DEG)
+            current_state = PATROLLING
+
+        # --- WORK 2: the catch-all, last ---
         else:
             sb.light_both_leds(1, 0, 0)
             sb.log_info("Bad:", current_state)

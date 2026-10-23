@@ -53,7 +53,7 @@ TESTS = [
     ("P09: charges what is in front",
      solutions.test_p09_charges_what_is_in_front_of_it),
     ("P09: edge beats the charge", solutions.test_p09_edge_beats_the_charge),
-    ("P09: waits for the start button",
+    ("P09: waits for OK",
      solutions.test_p09_waits_for_the_start_button),
     ("P09: Cancel stops it before the match",
      solutions.test_p09_cancel_stops_it_before_the_match),
@@ -61,6 +61,7 @@ TESTS = [
      solutions.test_p09_floor_is_not_an_opponent),
     ("P09: a wobble does not end the charge",
      solutions.test_p09_a_wobble_does_not_end_the_charge),
+    ("P09: no gamepad", solutions.test_p09_has_no_gamepad),
 
     ("Line: squares up (directed)", solutions.test_line_squares_up_from_one_approach),
     ("Line: squares up (40 generated approaches)",

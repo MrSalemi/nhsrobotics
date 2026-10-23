@@ -420,23 +420,20 @@ def test_p08_works_with_no_screen_either():
 # P09 -- the sumo bot
 # --------------------------------------------------------------------------
 
-class _PressCrossAt:
-    """The student's thumb. Holds CROSS down from this moment on; the
-    gamepad's own edge detector turns that into a single press."""
+class _HoldOkAt:
+    """The student's finger. Holds the robot's OK pad from this moment
+    on -- P04's start. No gamepad anywhere in P09 (DECISIONS #7)."""
 
     def __init__(self, sim_ms):
         self.sim_ms = sim_ms
 
-    def button(self, name, env):
-        return name == "cross" and env.clock.now_ms >= self.sim_ms
+    def touch(self, name, env):
+        return name == "ok" and env.clock.now_ms >= self.sim_ms
 
 
-class _HoldCancelAndCross:
+class _HoldCancel:
     def touch(self, name, env):
         return name == "cancel"
-
-    def button(self, name, env):
-        return False
 
 
 def _run_sumo(target=None, start_ms=200, watchdog_ms=WATCHDOG_MS,
@@ -444,7 +441,7 @@ def _run_sumo(target=None, start_ms=200, watchdog_ms=WATCHDOG_MS,
     plant = Plant(ring=RING, target=target, defects=defects,
                   start=(0.0, 0.0, 0.0))
     env = Environment(plant=plant,
-                      stimulus=stimulus or _PressCrossAt(start_ms),
+                      stimulus=stimulus or _HoldOkAt(start_ms),
                       watchdog_ms=watchdog_ms)
     env.run(solution(P09))
     return env
@@ -495,7 +492,7 @@ def test_p09_edge_beats_the_charge():
 
 
 def test_p09_waits_for_the_start_button():
-    """Armed is not started. Nothing may turn a wheel before CROSS."""
+    """Armed is not started. Nothing may turn a wheel before OK."""
     if not _have(P09):
         return 2, "%s not written yet" % P09
     start_ms = 5000
@@ -507,11 +504,11 @@ def test_p09_waits_for_the_start_button():
 
 
 def test_p09_cancel_stops_it_before_the_match():
-    """Cancel has to work while the robot is still waiting for a
-    controller. Without that the only way out is the battery."""
+    """Cancel has to work while the robot is still waiting for OK.
+    Without that the only way out is the battery."""
     if not _have(P09):
         return 2, "%s not written yet" % P09
-    env = _run_sumo(stimulus=_HoldCancelAndCross(), watchdog_ms=20000)
+    env = _run_sumo(stimulus=_HoldCancel(), watchdog_ms=20000)
     if env.result.watchdog:
         return 0, "Cancel did not get out of the wait for the start button"
     if env.plant.distance_travelled_cm > 1.0:
@@ -533,8 +530,8 @@ def test_p09_floor_is_not_an_opponent():
                           scoreboard.check_stayed_in_ring(env))
 
 
-class _CrossThenWobble:
-    """Presses CROSS, then once the charge has started, eases the
+class _OkThenWobble:
+    """Holds OK, then once the charge has started, eases the
     opponent from 2 cm to 4 cm off the nose: past ATTACK_CM, inside
     LOST_CM. The touch() hook is polled every pass by sb.held('cancel'),
     which makes it the testbench's hand on the opponent."""
@@ -543,13 +540,10 @@ class _CrossThenWobble:
         self.at_ms = at_ms
         self.gap_cm = gap_cm
 
-    def button(self, name, env):
-        return name == "cross" and env.clock.now_ms >= 200
-
     def touch(self, name, env):
         if env.clock.now_ms >= self.at_ms and env.plant.target is not None:
             env.plant.target.gap_cm = self.gap_cm
-        return False
+        return name == "ok" and env.clock.now_ms >= 200
 
 
 def test_p09_a_wobble_does_not_end_the_charge():
@@ -559,7 +553,7 @@ def test_p09_a_wobble_does_not_end_the_charge():
     if not _have(P09):
         return 2, "%s not written yet" % P09
     env = _run_sumo(target=Target(10.0, 0.0, "glued", gap_cm=2.0),
-                    stimulus=_CrossThenWobble(), watchdog_ms=30000)
+                    stimulus=_OkThenWobble(), watchdog_ms=30000)
     states = env.monitor.states_shown()
     if "ATTACKING" not in states:
         return 0, "never charged a target 2 cm from its nose"
@@ -569,6 +563,21 @@ def test_p09_a_wobble_does_not_end_the_charge():
             " -> ".join(states[:5]))
     return _first_failure(_ran_without_raising(env),
                           scoreboard.check_stayed_in_ring(env))
+
+
+def test_p09_has_no_gamepad():
+    """DECISIONS #7: sumo is autonomous, and a bout starts on the robot's
+    own OK pad. A gamepad brings pairing, WiFi and a flat controller back
+    to tournament day."""
+    for path in (solution(P09),
+                 os.path.join(os.path.dirname(os.path.dirname(solution(P09))),
+                              "projects", "p09_sumo_bot.py")):
+        if not os.path.exists(path):
+            continue
+        with open(path) as handle:
+            if "RobotGamepad" in handle.read():
+                return 0, "%s uses RobotGamepad" % os.path.basename(path)
+    return 1, ""
 
 
 # --------------------------------------------------------------------------

@@ -17,7 +17,7 @@
 # FLEX (the A+): win the tournament.
 
 from arduino_alvik import ArduinoAlvik
-from nhs_robotics import SuperBot, RobotGamepad
+from nhs_robotics import SuperBot
 import time
 
 # GIVEN: the robot and the suit.
@@ -87,34 +87,6 @@ def edge_detected():
             or right < EDGE_THRESHOLD)
 
 
-def waiting_for_gamepad(gamepad):
-    """Hold the robot still until its driver presses CROSS.
-
-    Building the gamepad, further down, already blinked the lights
-    yellow until the controller connected. From here they blink green:
-    connected, and waiting for the match to start.
-
-    Nothing in the match reads the gamepad. It exists to start you, and
-    once you are started a flat controller battery cannot cost you a
-    bout.
-
-    Cancel gets out of here too, so a robot that is connected but never
-    gets its start can still be stopped.
-    """
-    lights_on = False
-    last_blink = time.ticks_ms()
-    while not gamepad.pressed('cross') and not sb.held('cancel'):
-        gamepad.update()
-        if time.ticks_diff(time.ticks_ms(), last_blink) > 300:
-            last_blink = time.ticks_ms()
-            lights_on = not lights_on
-            if lights_on:
-                sb.light_both_leds(0, 1, 0)
-            else:
-                sb.light_both_leds(0, 0, 0)
-        time.sleep_ms(20)
-    sb.light_both_leds(0, 0, 0)
-
 
 # GIVEN: the state the robot is in right now. One variable decides
 # everything the robot does.
@@ -124,13 +96,14 @@ current_state = PATROLLING
 # state changes.
 last_state = ""
 
-# GIVEN: the gamepad. Building it stops the robot until a controller
-# connects, so it happens here, before anything else.
-gamepad = RobotGamepad(alvik)
-
 try:
-    # GIVEN: nothing moves until CROSS is pressed.
-    waiting_for_gamepad(gamepad)
+    # GIVEN: P04's start. The lights flash white until somebody holds
+    # OK, then the match begins. Cancel gets you out before the start.
+    while not sb.held('ok') and not sb.held('cancel'):
+        sb.light_both_leds(1, 1, 1)
+        time.sleep(0.25)
+        sb.light_both_leds(0, 0, 0)
+        time.sleep(0.25)
 
     # GIVEN: Cancel on the robot ends the run.
     while not sb.held('cancel'):
@@ -149,19 +122,19 @@ try:
             last_state = current_state
             sb.update_display("Sumo:", current_state)
 
-        # --- WORK 1: PATROLLING, TURNING, and the catch-all ---
+        # --- WORK 1: PATROLLING and ATTACKING ---
         # P08's patterns. PATROLLING: green, both wheels at PATROL_RPM,
-        # and the test that starts a charge. TURNING: P08's retreat --
-        # blue, back up, turn TURN_DEG, then straight back to
-        # patrolling; there is no RUNNING here. Then the catch-all
-        # "else" at the end of the chain. Put all three where the "pass"
-        # is, then delete the "pass" line.
+        # and the test that starts a charge. ATTACKING: steady red, both
+        # wheels at ATTACK_RPM, and one way out -- further than LOST_CM
+        # goes back to patrolling. Put both where the "pass" is, then
+        # delete the "pass" line.
         pass
 
-        # --- WORK 2: ATTACKING ---
-        # An "elif", ABOVE the else. Steady red, both wheels at
-        # ATTACK_RPM, and one way out: further than LOST_CM goes back to
-        # patrolling.
+        # --- WORK 2: TURNING, and the catch-all ---
+        # Both go at the end of the chain, under ATTACKING. TURNING is
+        # P08's retreat: blue, back up, turn TURN_DEG, then straight back
+        # to patrolling. There is no RUNNING here. Then P08's catch-all
+        # "else", the last thing in the chain.
 
         # GIVEN: a moment for the robot to get on with its own work.
         time.sleep_ms(50)
