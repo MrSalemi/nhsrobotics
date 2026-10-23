@@ -32,7 +32,7 @@ FLOOR_ECHO_CM = 19.0
 P08_WARNING_MS = 5000
 
 P09 = "sol09_sumo_bot.py"
-P09_STATES = ("PATROLLING", "TURNING", "ATTACKING")
+P09_STATES = ("PATROLLING", "TURNING")
 
 # The sumo ring: radius and rim width, in centimetres.
 RING = (40.0, 7.6)
@@ -436,25 +436,23 @@ class _HoldCancel:
         return name == "cancel"
 
 
+P09_SCAFFOLD = os.path.join(os.path.dirname(os.path.dirname(solution(P09))),
+                            "projects", "p09_sumo_bot.py")
+
+
 def _run_sumo(target=None, start_ms=200, watchdog_ms=WATCHDOG_MS,
-              stimulus=None, defects=None):
+              stimulus=None, defects=None, path=None):
     plant = Plant(ring=RING, target=target, defects=defects,
                   start=(0.0, 0.0, 0.0))
     env = Environment(plant=plant,
                       stimulus=stimulus or _HoldOkAt(start_ms),
                       watchdog_ms=watchdog_ms)
-    env.run(solution(P09))
+    env.run(path or solution(P09))
     return env
 
 
-def test_p09_stays_in_the_ring():
-    """The whole project in one check. An empty ring, a full minute, and
-    the robot has to still be on it. Checked against the plant's own
-    position -- a robot with a broken edge test says nothing, it just
-    drives away."""
-    if not _have(P09):
-        return 2, "%s not written yet" % P09
-    env = _run_sumo(watchdog_ms=60000)
+def _stays_in_the_ring(path):
+    env = _run_sumo(watchdog_ms=60000, path=path)
     return _first_failure(
         _ran_without_raising(env),
         scoreboard.check_stayed_in_ring(env),
@@ -463,35 +461,30 @@ def test_p09_stays_in_the_ring():
     )
 
 
-def test_p09_charges_what_is_in_front_of_it():
+def test_p09_stays_in_the_ring():
+    """WORK 1 in one check. An empty ring, a full minute, and the robot
+    has to still be on it. Checked against the plant's own position --
+    a robot with a broken edge test says nothing, it just drives away."""
     if not _have(P09):
         return 2, "%s not written yet" % P09
-    env = _run_sumo(target=Target(22.0, 0.0, "stand"), watchdog_ms=30000)
-    if "ATTACKING" not in env.monitor.states_shown():
-        return 0, "never attacked a target parked in front of it"
-    return _first_failure(_ran_without_raising(env),
-                          scoreboard.check_stayed_in_ring(env))
+    return _stays_in_the_ring(solution(P09))
 
 
-def test_p09_edge_beats_the_charge():
-    """A target glued to the robot's nose, so the charge can never end on
-    its own. The only thing that can stop it pushing itself off the ring
-    is the guard above the tree. If the edge test were inside a branch
-    this is the run that would fail."""
+def test_p09_edge_beats_a_shove():
+    """A target glued to the robot's nose, so the patrol pushes it
+    forever. The only thing that can stop the robot following it off
+    the ring is the guard above the tree."""
     if not _have(P09):
         return 2, "%s not written yet" % P09
     env = _run_sumo(target=Target(10.0, 0.0, "glued", gap_cm=2.0),
                     watchdog_ms=45000)
-    states = env.monitor.states_shown()
-    if "ATTACKING" not in states:
-        return 0, "never charged a target 2 cm from its nose"
-    if "TURNING" not in states:
-        return 0, "charged forever and never turned at the rim"
+    if "TURNING" not in env.monitor.states_shown():
+        return 0, "pushed forever and never turned at the rim"
     return _first_failure(_ran_without_raising(env),
                           scoreboard.check_stayed_in_ring(env))
 
 
-def test_p09_waits_for_the_start_button():
+def test_p09_waits_for_ok():
     """Armed is not started. Nothing may turn a wheel before OK."""
     if not _have(P09):
         return 2, "%s not written yet" % P09
@@ -510,57 +503,23 @@ def test_p09_cancel_stops_it_before_the_match():
         return 2, "%s not written yet" % P09
     env = _run_sumo(stimulus=_HoldCancel(), watchdog_ms=20000)
     if env.result.watchdog:
-        return 0, "Cancel did not get out of the wait for the start button"
+        return 0, "Cancel did not get out of the wait for OK"
     if env.plant.distance_travelled_cm > 1.0:
         return 0, "moved %.1f cm with Cancel held" % env.plant.distance_travelled_cm
     return _first_failure(_ran_without_raising(env),
                           scoreboard.check_stopped_cleanly(env.monitor))
 
 
-def test_p09_floor_is_not_an_opponent():
-    """The sensor sees the floor. An empty ring must never start a
-    charge, however the floor reads."""
+def test_p09_stays_in_with_the_floor_echo():
+    """The sensor sees the floor at about 19 cm. WORK 1 ignores the
+    distance sensor, so the floor must change nothing."""
     if not _have(P09):
         return 2, "%s not written yet" % P09
     env = _run_sumo(watchdog_ms=30000, defects=FLOOR)
-    if "ATTACKING" in env.monitor.states_shown():
-        return 0, "charged an empty ring with the floor at %.0f cm" % (
-            FLOOR_ECHO_CM)
-    return _first_failure(_ran_without_raising(env),
-                          scoreboard.check_stayed_in_ring(env))
-
-
-class _OkThenWobble:
-    """Holds OK, then once the charge has started, eases the
-    opponent from 2 cm to 4 cm off the nose: past ATTACK_CM, inside
-    LOST_CM. The touch() hook is polled every pass by sb.held('cancel'),
-    which makes it the testbench's hand on the opponent."""
-
-    def __init__(self, at_ms=1500, gap_cm=4.0):
-        self.at_ms = at_ms
-        self.gap_cm = gap_cm
-
-    def touch(self, name, env):
-        if env.clock.now_ms >= self.at_ms and env.plant.target is not None:
-            env.plant.target.gap_cm = self.gap_cm
-        return name == "ok" and env.clock.now_ms >= 200
-
-
-def test_p09_a_wobble_does_not_end_the_charge():
-    """P08's gap, reused. A charge starts inside ATTACK_CM and ends past
-    LOST_CM, so an opponent that slips to 4 cm is still being shoved.
-    With one threshold the robot drops to patrol speed mid-shove."""
-    if not _have(P09):
-        return 2, "%s not written yet" % P09
-    env = _run_sumo(target=Target(10.0, 0.0, "glued", gap_cm=2.0),
-                    stimulus=_OkThenWobble(), watchdog_ms=30000)
-    states = env.monitor.states_shown()
-    if "ATTACKING" not in states:
-        return 0, "never charged a target 2 cm from its nose"
-    after = states[states.index("ATTACKING") + 1:]
-    if not after or after[0] != "TURNING":
-        return 0, "went %s; a 4 cm wobble should not end the charge" % (
-            " -> ".join(states[:5]))
+    extra = set(env.monitor.states_shown()) - {"PATROLLING", "TURNING"}
+    if extra:
+        return 0, "showed %s with the floor at %.0f cm" % (
+            ", ".join(sorted(extra)), FLOOR_ECHO_CM)
     return _first_failure(_ran_without_raising(env),
                           scoreboard.check_stayed_in_ring(env))
 
@@ -569,9 +528,7 @@ def test_p09_has_no_gamepad():
     """DECISIONS #7: sumo is autonomous, and a bout starts on the robot's
     own OK pad. A gamepad brings pairing, WiFi and a flat controller back
     to tournament day."""
-    for path in (solution(P09),
-                 os.path.join(os.path.dirname(os.path.dirname(solution(P09))),
-                              "projects", "p09_sumo_bot.py")):
+    for path in (solution(P09), P09_SCAFFOLD):
         if not os.path.exists(path):
             continue
         with open(path) as handle:

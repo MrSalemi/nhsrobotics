@@ -1,91 +1,65 @@
 # Project 09: The Sumo Bot -- SOLUTION
-# Version: V02
+# Version: V04
 #
-# Teacher copy. Three states, one elif tree, and one test that lives
-# outside the tree.
+# Teacher copy, for the testbench only. Students never see it.
 #
-#   PATROLLING  green, patrol speed, hunting                    WORK 1
-#   ATTACKING   red, full speed into whatever is in front       WORK 1
-#   TURNING     blue, back off the rim and turn away            WORK 2
-#   the catch-all else, last in the chain                       WORK 2
-#   the edge guard, above the tree                              WORK 3
-#
-# THE TERM-ENDING PROJECT. The guide prints no P09 code. Each WORK shows
-# a pattern the way an earlier project taught it -- P08's branch shape,
-# catch-all, two-limit gap and retreat; P03's set_wheels_speed() -- and
-# the student writes the P09 version.
-#
-# WHAT IS NEW HERE, AND IT IS ONLY ONE THING.
-#
-# Every transition the class has ever written lived inside a branch, and
-# so took effect on the NEXT pass of the loop. The edge test cannot wait
-# for the next pass and cannot be repeated in every branch, so it sits
-# above the tree and writes current_state before the tree runs. That
-# makes it take effect on THIS pass: the tree sees the new state and the
-# TURNING branch executes immediately.
-#
-# WHY THE GUARD HAS TO OUTRANK THE CHARGE. The rim is about 7.6 cm. At
-# 50 RPM that is a little under a second from first white to falling
-# out; at 70 RPM about six tenths. 70 RPM is exactly when the robot is
-# least interested in looking down.
-#
-# It also means a robot cannot win itself out of the ring. Shove an
-# opponent over the rim and the winner is standing on the rim, so the
-# guard fires before the attack branch runs. Nobody writes that case.
-#
-# WHY THE CHARGE HAS TWO LIMITS. P08's SPOT_CM / FLED_CM gap, reused. In
-# at ATTACK_CM, out past LOST_CM, so an opponent wobbling at the
-# threshold does not flip the robot between red and green mid-shove.
-#
-# WHAT IS NOT SOLVED, ON PURPOSE. Two robots nose to nose both see
-# something inside ATTACK_CM, both charge, and neither moves. Nothing in
-# these three states breaks that. It is where a fourth state -- and the
-# tournament -- is won.
-
-import time
+# WORK 1 only: PATROLLING -> TURNING -> PATROLLING, with the edge guard
+# above the tree as the only thing that causes a turn. WORK 2 and WORK 3
+# are two states each student designs, so there is no single answer to
+# put here.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot
+import time
 
+# GIVEN: the robot and the suit.
 alvik = ArduinoAlvik()
 alvik.begin()
 sb = SuperBot(alvik)
 
+# GIVEN: the names of the two states, spelled once each, the same as
+# P08. Misspell the name and Python stops and tells you where; misspell
+# a word inside quotes and nobody tells you anything at all.
 PATROLLING = "PATROLLING"
-ATTACKING = "ATTACKING"
 TURNING = "TURNING"
 
+# GIVEN: patrol speed, in RPM, the same as P03. 70 is as fast as these
+# motors go.
 PATROL_RPM = 50
-ATTACK_RPM = 70
 
-# The ring floor false-positives the distance sensor from about 5 cm
-# out, so the charge starts underneath the lies and ends just past them.
-ATTACK_CM = 3.0
-LOST_CM = 5.0
-
-# Must be further than the nose has already crept over the white, or the
-# robot turns with a sensor still on the rim and guards again forever.
+# GIVEN: how far to back off the rim before turning, the same name as
+# P08. It has to be more than the robot's nose has already crept over
+# the white, or it turns with a sensor still on the rim and does the
+# whole thing again.
 BACK_UP_CM = 10.0
 
-# Given, P08's angle: 180 runs the same diameter forever, a quarter turn
-# runs along the rim and back into it. Students may change it.
+# GIVEN: how far to turn after backing off the rim, in degrees. 135 is
+# P08's angle, for P08's reason. Change it if you like -- it decides
+# where your robot goes for the whole match.
 TURN_DEG = 135
 
-# Black floor reads high, white rim reads low, so the rim is a reading
-# that DROPS. Not yet measured on the real ring.
+# GIVEN: the ring floor is black and the rim is white, and the line
+# sensors read HIGH on black. So the rim is a reading that DROPS. If the
+# robot drives over the white, this number does not match the ring.
 EDGE_THRESHOLD = 200
+
+# --- WORK 2 and WORK 3: your names and numbers ---
+# Each new state gets its name here, spelled once, like the two above.
+# Any number your states need goes here too.
 
 
 def edge_detected():
     """True when any line sensor has reached the white rim.
 
-    Given to students. The line sensors appear nowhere else in the
-    project, so this is the only place that knows they return None until
-    their first packet arrives, and the only place that knows the rim is
-    low rather than high.
+    You do not use the line sensors anywhere else in this project, and
+    you do not have to understand this function to finish. Read it if
+    you are curious -- there is no magic in it.
 
-    Any one sensor is enough. Waiting for all three means waiting until
-    the robot is most of the way off the ring.
+    Each sensor reads None until its first packet arrives. None is not a
+    reading of zero, so it is checked for here and nowhere else.
+
+    Any one sensor is enough. Waiting for all three would mean waiting
+    until the robot is most of the way off the ring.
     """
     left, center, right = alvik.get_line_sensors()
     if left is None or center is None or right is None:
@@ -95,32 +69,36 @@ def edge_detected():
             or right < EDGE_THRESHOLD)
 
 
-
+# GIVEN: the state the robot is in right now. One variable decides
+# everything the robot does.
 current_state = PATROLLING
+
+# GIVEN: what the screen said last time, so it is written only when the
+# state changes.
 last_state = ""
 
 try:
-    # P04's wait for OK. No gamepad anywhere (DECISIONS #7): nothing to
-    # pair on tournament day, and no flat controller to cost a bout.
+    # GIVEN: P04's start. The lights flash white until somebody holds
+    # OK, then the match begins. Cancel gets you out before the start.
     while not sb.held('ok') and not sb.held('cancel'):
         sb.light_both_leds(1, 1, 1)
         time.sleep(0.25)
         sb.light_both_leds(0, 0, 0)
         time.sleep(0.25)
 
+    # GIVEN: Cancel on the robot ends the run.
     while not sb.held('cancel'):
 
+        # GIVEN: how much room is in front of the robot this time round.
         distance = sb.get_closest_distance()
 
-        # --- WORK 3: THE EDGE GUARD ---
-        # Above the tree, so it beats every branch in it.
+        # --- WORK 1: THE EDGE GUARD ---
+        # Above the screen and above the tree, so it beats every branch.
         if edge_detected():
             current_state = TURNING
 
-        # The screen is written AFTER the guard, and that is not a
-        # detail. TURNING is set by the guard and cleared by its own
-        # branch on the same pass, so a screen written above the guard
-        # never sees it.
+        # GIVEN: the state on the screen. It sits BELOW the guard on
+        # purpose, so that a state the guard has just set gets shown.
         if current_state != last_state:
             last_state = current_state
             sb.update_display("Sumo:", current_state)
@@ -130,39 +108,28 @@ try:
             sb.light_both_leds(0, 1, 0)
             alvik.set_wheels_speed(PATROL_RPM, PATROL_RPM)
 
-            if distance < ATTACK_CM:
-                current_state = ATTACKING
-
-        # --- WORK 1: ATTACKING ---
-        elif current_state == ATTACKING:
-            sb.light_both_leds(1, 0, 0)
-            alvik.set_wheels_speed(ATTACK_RPM, ATTACK_RPM)
-
-            # The opponent got away, or was pushed out. During a real
-            # shove it stays inside LOST_CM and this never fires -- the
-            # guard ends the attack instead, at the rim.
-            if distance > LOST_CM:
-                current_state = PATROLLING
-
-        # --- WORK 2: TURNING ---
-        # Both moves block, and the robot is leaving, so there is
-        # nothing it needs to watch while they run.
+        # --- WORK 1: TURNING ---
+        # P08's retreat, with no RUNNING after it.
         elif current_state == TURNING:
             sb.light_both_leds(0, 0, 1)
             alvik.move(-BACK_UP_CM)
             alvik.rotate(TURN_DEG)
             current_state = PATROLLING
 
-        # --- WORK 2: the catch-all, last ---
-        else:
-            sb.light_both_leds(1, 0, 0)
-            sb.log_info("Bad:", current_state)
-            time.sleep_ms(3000)
-            break
+        # --- WORK 2: your first new state ---
+        # An "elif" here, at the end of the chain, under TURNING.
 
+        # --- WORK 3: your second new state ---
+        # Another "elif" under WORK 2. Then P08's catch-all "else" as
+        # the very last thing in the chain.
+
+        # GIVEN: a moment for the robot to get on with its own work.
         time.sleep_ms(50)
 
 finally:
+    # GIVEN. A crash must never leave the wheels running or a light on.
     alvik.brake()
     sb.light_both_leds(0, 0, 0)
-    alvik.stop()
+    alvik.stop()  # GIVEN. Always call this. It stops the robot software
+                  # and frees the WiFi network. Without it the robot can
+                  # hang and need a restart.

@@ -1,13 +1,12 @@
 # Project 09: The Sumo Bot
-# Version: V02
+# Version: V04
 #
-# GOAL: A robot that patrols the sumo ring, backs off when it reaches
-# the white rim, and charges anything it finds in front of it.
+# GOAL: A robot that patrols the sumo ring, turns away from the white
+# rim, and does two more things that you design.
 #
-# THIS IS THE TERM-ENDING PROJECT. You put together the skills from
-# P01 through P08. The guide shows you each pattern the way an earlier
-# project taught it, and you write the P09 version yourself. There is
-# one new idea: the edge guard.
+# THIS IS THE TERM-ENDING PROJECT. WORK 1 is a robot that patrols and
+# turns away from the edge, built from P08's patterns plus one new idea:
+# the edge guard. WORK 2 and WORK 3 are two new states you design.
 #
 # SAVE YOUR COPY FIRST: In Thonny, use File > Save As, pick the Alvik
 # (MicroPython device), and save this file as /workspace/p09.py. From
@@ -25,28 +24,15 @@ alvik = ArduinoAlvik()
 alvik.begin()
 sb = SuperBot(alvik)
 
-# GIVEN: the names of the three states, spelled once each, the same as
+# GIVEN: the names of the two states, spelled once each, the same as
 # P08. Misspell the name and Python stops and tells you where; misspell
 # a word inside quotes and nobody tells you anything at all.
-#
-# You are allowed more states than these. The three below make a robot
-# that plays. They do not make a robot that wins.
 PATROLLING = "PATROLLING"
-ATTACKING = "ATTACKING"
 TURNING = "TURNING"
 
-# GIVEN: wheel speeds, in RPM, the same as P03. 70 is as fast as these
-# motors go, so the charge is everything the robot has.
+# GIVEN: patrol speed, in RPM, the same as P03. 70 is as fast as these
+# motors go.
 PATROL_RPM = 50
-ATTACK_RPM = 70
-
-# GIVEN: the two limits of a charge, in centimeters, with a gap between
-# them the way P08 had one. Closer than ATTACK_CM: charge. Further than
-# LOST_CM: it got away. 3 cm is not a round number by accident -- the
-# ring floor gives the distance sensor false readings from about 5 cm
-# out, so the charge is set underneath the lies.
-ATTACK_CM = 3.0
-LOST_CM = 5.0
 
 # GIVEN: how far to back off the rim before turning, the same name as
 # P08. It has to be more than the robot's nose has already crept over
@@ -61,11 +47,16 @@ TURN_DEG = 135
 
 # GIVEN: the ring floor is black and the rim is white, and the line
 # sensors read HIGH on black. So the rim is a reading that DROPS. If the
-# robot drives over the white with your guard in place, this number
-# does not match the ring.
+# robot drives over the white, this number does not match the ring.
 EDGE_THRESHOLD = 200
 
+# --- WORK 2 and WORK 3: your names and numbers ---
+# Each new state gets its name here, spelled once, like the two above.
+# Any number your states need goes here too.
 
+
+# GIVEN: Edge detection. This function checks to see if we are at the
+# edge of the sumo ring.
 def edge_detected():
     """True when any line sensor has reached the white rim.
 
@@ -85,7 +76,6 @@ def edge_detected():
     return (left < EDGE_THRESHOLD
             or center < EDGE_THRESHOLD
             or right < EDGE_THRESHOLD)
-
 
 
 # GIVEN: the state the robot is in right now. One variable decides
@@ -111,10 +101,10 @@ try:
         # GIVEN: how much room is in front of the robot this time round.
         distance = sb.get_closest_distance()
 
-        # --- WORK 3: THE EDGE GUARD ---
-        # Two lines, and they go right here: above the screen and above
-        # the tree. Use edge_detected() to send the robot to TURNING. The
-        # guide says why it cannot go inside a branch.
+        # --- WORK 1: THE EDGE GUARD ---
+        # Two lines, right here: above the screen and above the tree.
+        # Use edge_detected() to send the robot to TURNING. The guide
+        # says why it cannot go inside a branch.
 
         # GIVEN: the state on the screen. It sits BELOW the guard on
         # purpose, so that a state the guard has just set gets shown.
@@ -122,19 +112,23 @@ try:
             last_state = current_state
             sb.update_display("Sumo:", current_state)
 
-        # --- WORK 1: PATROLLING and ATTACKING ---
-        # P08's patterns. PATROLLING: green, both wheels at PATROL_RPM,
-        # and the test that starts a charge. ATTACKING: steady red, both
-        # wheels at ATTACK_RPM, and one way out -- further than LOST_CM
-        # goes back to patrolling. Put both where the "pass" is, then
-        # delete the "pass" line.
+        # --- WORK 1: PATROLLING and TURNING ---
+        # Write a state machine that patrols until it sees an
+        # edge then turns.
+
+        # P08's patterns. PATROLLING: green, both wheels at PATROL_RPM.
+        # TURNING: P08's retreat -- blue, back up BACK_UP_CM, turn
+        # TURN_DEG, then straight back to patrolling. There is no
+        # RUNNING here. Put both where the "pass" is, then delete the
+        # "pass" line.
         pass
 
-        # --- WORK 2: TURNING, and the catch-all ---
-        # Both go at the end of the chain, under ATTACKING. TURNING is
-        # P08's retreat: blue, back up, turn TURN_DEG, then straight back
-        # to patrolling. There is no RUNNING here. Then P08's catch-all
-        # "else", the last thing in the chain.
+        # --- WORK 2: your first new state ---
+        # An "elif" here, at the end of the chain, under TURNING.
+
+        # --- WORK 3: your second new state ---
+        # Another "elif" under WORK 2. Then P08's catch-all "else" as
+        # the very last thing in the chain.
 
         # GIVEN: a moment for the robot to get on with its own work.
         time.sleep_ms(50)

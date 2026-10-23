@@ -1,8 +1,8 @@
-# tests/regression_guides.py -- guide-level regression. V01
+# tests/regression_guides.py -- guide-level regression. V02
 #
-# P09 prints no code of its own. Every block in it is a pattern quoted
-# from an earlier project's guide, and the student builds the P09
-# version from it. Nothing used to check that the quote still matched
+# Every block in P09 is either a pattern quoted from an earlier
+# project's guide or WORK 1's given code, quoted from P09's own
+# scaffold. Nothing used to check that the quote still matched
 # the project it came from: P08 changed on 2026-10-20 and P09 went on
 # printing a P08 that no longer existed. These checks are that guard.
 #
@@ -48,13 +48,32 @@ def _contains(haystack, needle):
                for i in range(len(haystack) - width + 1))
 
 
+def _dedented(lines, width):
+    pad = " " * width
+    return [line[width:] if line.startswith(pad) else line for line in lines]
+
+
+def _in_own_scaffold(guide, block):
+    """True when the block is given code in this project's own scaffold,
+    at any indent the loop puts it at."""
+    path = _scaffold_for(int(guide[1:3]))
+    if not path:
+        return False
+    lines = _read(path).split("\n")
+    return any(_contains(_dedented(lines, width), block)
+               for width in (0, 4, 8, 12))
+
+
 def quotes_missing_from_earlier_guides(guide, text=None):
-    """Blocks in `guide` that appear in no earlier guide, word for word."""
+    """Blocks in `guide` that appear word for word in neither an earlier
+    guide nor this project's own scaffold."""
     if text is None:
         text = _read(os.path.join(GUIDES, guide))
     earlier = [code_blocks(body) for _name, body in _earlier_guides(guide)]
     missing = []
     for block in code_blocks(text):
+        if _in_own_scaffold(guide, block):
+            continue
         if not any(_contains(source, block)
                    for blocks in earlier for source in blocks):
             missing.append(block)
