@@ -1,5 +1,5 @@
 # Project 09: The Sumo Bot
-# Version: V04
+# Version: V05
 #
 # GOAL: A robot that patrols the sumo ring, turns away from the white
 # rim, and does two more things that you design.
@@ -13,7 +13,8 @@
 # now on, open and edit THAT copy -- files outside /workspace get
 # overwritten whenever the projects are updated.
 #
-# FLEX (the A+): win the tournament.
+# FLEX (the A+): invent a third state of your own. The guide says what
+# counts.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot

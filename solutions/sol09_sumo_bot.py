@@ -1,5 +1,5 @@
 # Project 09: The Sumo Bot -- SOLUTION
-# Version: V04
+# Version: V05
 #
 # Teacher copy, for the testbench only. Students never see it.
 #
