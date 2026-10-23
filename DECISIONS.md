@@ -198,6 +198,9 @@ noted, a decision affects both repos.
     DECISIONS #14 — the retreat blocks, the countdown is a human voice, and the
     gamepad wait is given, so there is nowhere for a clock. Affects both repos.
     — 2026-08-09
+    — 2026-10-23: the guard above the tree still stands. The rest is
+    superseded by [#60](DECISIONS.md): there is no gamepad wait, and student
+    states in WORK 2 and WORK 3 may use a clock (Re-aim, Break the standoff).
 
 31. **The solution testbench models targets and rings, and every check is
     mutation-tested.** `tests/tb/plant.py` V02 adds a `Target` (stand, flee,
@@ -776,3 +779,55 @@ noted, a decision affects both repos.
     disappears from the distance sensor at the same moment (Ray's rule).
     Two-robot timed bouts, referee counts. Details and open questions are in
     STATUS. — 2026-10-13
+
+60. **P09 is the term-ending project: students write WORK 1, then design
+    two states of their own.** *(affects `robotics`: guide, scaffold,
+    solution, tests.)*
+
+    - **WORK 1** is `PATROLLING` → `TURNING` → `PATROLLING`, with the edge
+      guard above the tree as the only thing that causes a turn. Students
+      write all of it from P08's patterns and P03's wheel line.
+    - **WORK 2 and WORK 3** are two new states, picked from a menu: Charge,
+      Re-aim, Break the standoff. Each needs a name, its own light, a branch
+      at the end of the chain, and a way in.
+    - **The FLEX** is a third state of their own, not on the menu — so every
+      student can earn it, not just a tournament winner.
+    - **The match starts on OK**, P04's pattern. No gamepad, per
+      [#7](DECISIONS.md); the V01 scaffold had one, and a test now fails if
+      `RobotGamepad` comes back.
+    - **The solution is WORK 1 only.** Students never see it; it exists for
+      the testbench.
+    - **The guide prints only earlier projects' code**, as
+      [#29](DECISIONS.md) says, and does not print code a student already
+      learned (P09 does not give `now`; P07 and P08 taught it).
+    - **Struggling to design a new state is the point** of WORK 2 and WORK 3.
+      The menu says what each idea does and which pattern it uses, and stops
+      there.
+
+    **Paths not taken.** Giving WORK 1 as working code ("It's the least they
+    can do"). A guide that prints P09's own lines, which is what V01 tried
+    to avoid and V02 briefly did. Requiring Charge (a patrolling robot
+    already shoves whatever it drives into). A spinning search state (useless
+    with a 3 cm range). The FLEX as "win the tournament". WORK 3 as the guard
+    alone with `TURNING` in WORK 1 — the guard belongs with the states it
+    serves. — 2026-10-23
+
+61. **The catch-all `else` comes last, in the last WORK that adds a state.**
+    *(affects every state-machine project.)* With the `else` in WORK 1,
+    every later WORK has to go above it, and P08's students did not see
+    that. P09 does it this way now. P08 changes at midterms, after the class
+    has turned it in (Things task, 1/19). — 2026-10-22
+
+62. **The builder keeps a sentence ending in a colon on the same page as the
+    code, list or table it introduces.** *(affects `shared`, and every vault
+    on its next build.)* "This is how P08 wrote its patrol:" at the foot of
+    a page, with the code on the next, reads as nothing. Only the lead-in
+    gets Word's keep-with-next, so nothing chains. Four checks in
+    `test-build.js`. — 2026-10-22
+
+63. **A guide that quotes earlier projects is tested against them.**
+    *(affects `robotics/tests`.)* `regression_guides.py` fails when a code
+    block in P09 appears in neither an earlier guide nor P09's own scaffold,
+    or when the guide names a constant no scaffold defines. P09 broke
+    silently on 10/20 when P08 changed under it; this is the check that
+    would have caught it. — 2026-10-22

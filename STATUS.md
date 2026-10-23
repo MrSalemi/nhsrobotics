@@ -45,8 +45,10 @@ So: **never put `STATUS.md`, `DECISIONS.md` or `REFERENCE.md` in
   It is one Drive folder owned by `rdsalemi@gmail.com` and shared to
   `rsalemi@natickps.org`, so its local path differs per machine — `My
   Drive/Teaching/Class Development` at home, `.shortcut-targets-by-id/<id>/Class
-  Development` at school. The builder finds it by searching rather than by a
-  stored path; see [DECISIONS #45](DECISIONS.md).
+  Development` at school. ~~The builder finds it by searching rather than by a
+  stored path; see [DECISIONS #45](DECISIONS.md).~~ — 2026-10-23: superseded.
+  The builder reads `CLASS_DEV_DIR`, set once per machine in `~/.zshrc`; see
+  [shared/TOOLS.md](shared/TOOLS.md) §4.
 
 **The Cowork project mounts exactly these three, and nothing else:**
 
@@ -70,10 +72,12 @@ when the session starts. Change it, then start a new thread.
 mounted — mounts land side by side under one root, so `..` from inside the
 vault finds the others.
 
-`Class Development` is needed only because a *thread* deploys. `build-all.sh`
+`Class Development` is needed only because a *thread* deploys. ~~`build-all.sh`
 searches `$HOME/Library/CloudStorage` and `/sessions/*/mnt`; on Ray's Mac the
 first finds it, but in a thread's sandbox `$HOME` has no `Library`, so only the
-mount can match. Drop it from Context if deploying becomes Ray's job alone.
+mount can match.~~ — 2026-10-23: superseded. `build-all.sh` reads
+`CLASS_DEV_DIR` and searches nothing; a thread sets it to the mount (see
+Sandbox setup). Drop it from Context if deploying becomes Ray's job alone.
 
 ~~Mount `~/vaults` rather than a single vault.~~ — 2026-08-30: superseded. A
 Cowork project takes several Context folders, so the three above are named
@@ -105,7 +109,21 @@ longer used. See [DECISIONS #46](DECISIONS.md).
 `build-all.sh` now catches a missing `node_modules` itself and prints the
 command, instead of dying in a node stack trace.
 
+**A thread that deploys** has no `CLASS_DEV_DIR` in its shell. Point it at the
+mount for each run, from `guides/`:
+
+```bash
+CLASS_DEV_DIR="$HOME/mnt/Class Development" ../shared/build-all.sh -d p09.md
+```
+
 ## Current unit
+
+**2026-10-23: P09 The Sumo Bot is rebuilt (V05) and deployed, ahead of the
+11/3 and 11/5 battles.** WORK 1 is a robot students write themselves:
+`PATROLLING`, `TURNING`, and the edge guard as the only way into `TURNING`.
+WORK 2 and WORK 3 are two new states picked from a menu of three — Charge,
+Re-aim, Break the standoff. The FLEX is a third state of their own. See
+[DECISIONS #60](DECISIONS.md). The Line Racer below is still the next build.
 
 **2026-10-14: Term 2 planning has started, and the next thread builds the
 Line Racer.** The class is on P08 (work days 10/22 and 10/26, due 10/28). P09
@@ -182,8 +200,8 @@ it is not in the calendar.
 |---|---|---|
 | P00 | First Lights — two LEDs, a pattern, and a USB cable | Guide V01, scaffold V01, solution V01. Deployed and on the robots. Never taught. |
 | P07 | The Parking Sensor — seconds on the OLED, blink rate from distance, then drive | Guide V08, scaffold and solution written. Run on real robots; turned in by the class as of 2026-10-11. |
-| P08 | The Security Bot — patrol, advance, and run away. Introduces the state machine | Guide V04, scaffold V03, solution V03. Never run on a robot. |
-| P09 | The Sumo Bot — patrol the ring, charge, and never fall out | Guide V01, scaffold V01, solution V01. Never run on a robot. |
+| P08 | The Security Bot — patrol, stop and warn, and run away. Introduces the state machine | Guide V05, scaffold V04, solution V04. Being taught now, due 10/28. |
+| P09 | The Sumo Bot — patrol, turn at the rim, plus two states the student designs | Guide V05, scaffold V05, solution V05 (WORK 1 only). Deployed. Never run on a robot. |
 
 **P08 is no longer the line-sensor project.** Line alignment moved to Term 2 —
 see [DECISIONS #26](DECISIONS.md). Its solution is parked at `solutions/sol1x_line_alignment.py`.
@@ -193,6 +211,34 @@ he has run the class. Do not spend design effort past P09, and do not use any
 P10+ project as an argument about P07-P09 — those slots may be rewritten or cut.
 
 ## What's done
+
+**2026-10-22/23 — P09 rebuilt as the term-ending project, and the tests that
+would have caught its breakage.**
+
+- **P09 had been broken since P08 V04 (10/20).** Its guide quoted an
+  `ADVANCING` state and a retreat with no back-up that P08 no longer had, and
+  its scaffold used a gamepad that [DECISIONS #7](DECISIONS.md) bans. A
+  student agent read it cold and found 37 problems.
+- **P09 V05** is the design in [DECISIONS #60](DECISIONS.md): students write
+  WORK 1, design WORK 2 and WORK 3 from a menu, and invent a state for the
+  FLEX. The match starts on OK, P04's pattern. The catch-all comes last.
+  A second student agent built the whole project from the guide alone; its only
+  struggles were in designing its own states, which is the point.
+- **`tests/regression_guides.py`** fails when a code block in P09 is no longer
+  in an earlier guide or P09's own scaffold, or when the guide names a constant
+  no scaffold defines. Run against the old P09 it reports four stale quotes.
+- **The P09 testbench** now checks: stays in the ring for a minute, turns at the
+  rim while shoving, waits for OK, Cancel works before the start, the 19 cm floor
+  echo changes nothing, and no `RobotGamepad`. Every check mutation-tested.
+  Host suite 64 pass, 0 fail, 9 skip.
+- **The builder keeps a colon lead-in with what it introduces** —
+  [DECISIONS #62](DECISIONS.md). And `preflight.sh` writes its CI log to a fresh
+  temp file; a stale `/tmp/preflight-ci.log` owned by another user had made the
+  gate fail for good.
+- **P08's scaffold** no longer says an empty view reads 999; it reads the floor
+  at about 19 cm.
+- **Things 3:** "Measure the sumo ring" for 10/27, and "Move P08's catch-all
+  else out of WORK 1" for 1/19, the first day of midterms.
 
 **2026-09-14 — the constant-speed robot slowed down, and the Nano LED
 started counting the seconds.**
@@ -631,26 +677,38 @@ The guides, scaffolds and solutions are all written and all unverified against
 hardware. The testbench covers P08 and P09 against a modelled robot, which is
 not the same thing.
 
-**P09 numbers that are still guesses**
+**P09 numbers that are still guesses** — a Things task measures them on 10/27.
 
 - **`EDGE_THRESHOLD = 200`** in the sumo solution and scaffold. Nobody has put a
   line sensor on the real ring. Black floor should read high and the white rim
   low; the number between them is assumed.
-- **The 3 cm charge threshold.** Ray states the ToF returns a usable number at
-  3 cm and that floor false positives start further out, around 5 cm. Not
-  measured on the ring.
+- **The 3 cm and 5 cm in the guide's Charge idea.** Ray states the ToF returns a
+  usable number at 3 cm and that floor false positives start further out, around
+  5 cm. Not measured on the ring. What an empty ring reads is also unknown.
 
 **P09 tournament rules**
 
-How a bout starts beyond the CROSS press, how it ends, how students place, and
-how many robots per bout. Ray's ruling 2026-08-09: not a design input for the
-code, so the project was written without them.
+How a bout starts beyond the ~~CROSS press~~ OK press (2026-10-23: no gamepad),
+how it ends, how students place, and how many robots per bout. Ray's ruling
+2026-08-09: not a design input for the code, so the project was written without
+them. 2026-10-23: the FLEX no longer depends on them — it is "invent your own",
+not "win".
 
 **The deadlock nothing solves**
 
 Two sumo bots meet head-on, both see something inside 3 cm, both charge, and
-neither moves. The three given states cannot break it. This is deliberate — it
-is where a student's own fourth state, and the podium, are won.
+neither moves. ~~The three given states cannot break it. This is deliberate — it
+is where a student's own fourth state, and the podium, are won.~~ — 2026-10-23:
+superseded. "Break the standoff" is now one of the three menu ideas for WORK 2
+and WORK 3.
+
+**P08's catch-all sits in WORK 1** — students did not see that new states go
+above it. Leave it until P08 is turned in; fix it at midterms the way P09 does
+it. Things task for 1/19.
+
+**Other vaults repaginate on their next build.** The 10/22 builder change keeps
+a colon lead-in with its block, so every guide in every vault is stale until
+rebuilt, and page breaks can move. Only P09 has been rebuilt.
 
 **Renumbering not yet done in the repo**
 
