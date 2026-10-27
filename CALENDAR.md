@@ -29,9 +29,9 @@ and deploys material; it reads this file and does not change it. See
 | 2026-10-16 (Fri) | P07 work day |
 | 2026-10-20 (Tue) | P07 Due |
 | 2026-10-22 (Thu) | P08 work day |
-| 2026-10-26 (Mon) | P08 work day |
-| 2026-10-28 (Wed) | P08 Due |
-| 2026-10-30 (Fri) | Catch up day. End of Term 1 |
+| 2026-10-26 (Mon) | Ray out — no class |
+| 2026-10-28 (Wed) | P08 work day |
+| 2026-10-30 (Fri) | P08 Due. End of Term 1 |
 | 2026-11-03 (Tue) | P09 Sumo Battles |
 | 2026-11-05 (Thu) | P09 Sumo Battles |
 

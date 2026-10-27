@@ -126,7 +126,7 @@ Re-aim, Break the standoff. The FLEX is a third state of their own. See
 [DECISIONS #60](DECISIONS.md). The Line Racer below is still the next build.
 
 **2026-10-14: Term 2 planning has started, and the next thread builds the
-Line Racer.** The class is on P08 (work days 10/22 and 10/26, due 10/28). P09
+Line Racer.** The class is on P08 (work days 10/22 and 10/28, due 10/30; Ray was out 10/26). P09
 Sumo battles are 11/3 and 11/5, and Term 2 projects start after that. The Term
 2 ideas so far are under "What's open". Nothing is ordered or numbered yet;
 Ray: "We're too early to decide."
@@ -200,7 +200,7 @@ it is not in the calendar.
 |---|---|---|
 | P00 | First Lights — two LEDs, a pattern, and a USB cable | Guide V01, scaffold V01, solution V01. Deployed and on the robots. Never taught. |
 | P07 | The Parking Sensor — seconds on the OLED, blink rate from distance, then drive | Guide V08, scaffold and solution written. Run on real robots; turned in by the class as of 2026-10-11. |
-| P08 | The Security Bot — patrol, stop and warn, and run away. Introduces the state machine | Guide V05, scaffold V04, solution V04. Being taught now, due 10/28. |
+| P08 | The Security Bot — patrol, stop and warn, and run away. Introduces the state machine | Guide V05, scaffold V04, solution V04. Being taught now, due 10/30. |
 | P09 | The Sumo Bot — patrol, turn at the rim, plus two states the student designs | Guide V05, scaffold V05, solution V05 (WORK 1 only). Deployed. Never run on a robot. |
 
 **P08 is no longer the line-sensor project.** Line alignment moved to Term 2 —
