@@ -34,7 +34,8 @@ and deploys material; it reads this file and does not change it. See
 | 2026-10-30 (Fri) | P08 Due. End of Term 1 |
 | 2026-11-03 (Tue) | P09 Sumo Battles |
 | 2026-11-05 (Thu) | P09 Sumo Battles |
+| 2026-11-09 (Mon) | P09 Sumo Battles |
 
 Wed 10/7 is a Red day with no Robotics entry in the sheet.
 
-Note: tracked events stop after the P09 Sumo Battles days in early November. The source sheet has no later-term Robotics entries — Robotics and Advanced Robotics are Semester 1 only and end 2027-01-15, but the column is blank from 2026-11-06 onward.
+Note: tracked events stop after the P09 Sumo Battles days in early November. The source sheet has no later-term Robotics entries — Robotics and Advanced Robotics are Semester 1 only and end 2027-01-15, but the column is blank from 2026-11-12 onward (updated 2026-10-31).
