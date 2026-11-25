@@ -1,5 +1,5 @@
 # line_follower.py
-# nhs_robotics V03 addition: PID line following for the Alvik's three line sensors.
+# nhs_robotics V04: PID line following for the Alvik's three line sensors.
 #
 # Reached through SuperBot: left_rpm, right_rpm = sb.follow_line(base_speed);
 # sb.line_lost / sb.reset_line() proxy to this class. Can also be used
@@ -22,6 +22,7 @@ class LineFollower:
         self._integral = 0.0
         self._last_error = 0.0
         self._last_time = time.ticks_ms()
+        self._fresh = True
         self.line_lost = False
 
     def reset(self):
@@ -29,6 +30,7 @@ class LineFollower:
         self._integral = 0.0
         self._last_error = 0.0
         self._last_time = time.ticks_ms()
+        self._fresh = True
         self.line_lost = False
 
     def _position(self):
@@ -59,6 +61,12 @@ class LineFollower:
         self.line_lost = False
 
         error = pos
+        # The first step after a reset has no last error to compare
+        # with. Measuring against zero would read the whole offset as
+        # a jump in 20 ms and slam one wheel backwards.
+        if self._fresh:
+            self._last_error = error
+            self._fresh = False
         self._integral += error * dt
         # Anti-windup clamp
         if self._integral > 1.0:

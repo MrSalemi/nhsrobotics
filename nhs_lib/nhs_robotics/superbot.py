@@ -18,7 +18,13 @@ class SuperBot:
 
     # The robot's own touch pads. Same names, same two methods, as
     # RobotGamepad.held() and RobotGamepad.pressed().
-    TOUCH_NAMES = ('up', 'down', 'left', 'right', 'ok', 'cancel')
+    TOUCH_NAMES = ('up', 'down', 'left', 'right', 'ok', 'cancel', 'center')
+
+    # The line sensors read LOW over white and HIGH over black. Measured
+    # on marker over white paper (DECISIONS #21): white reads about 50,
+    # a sensor on the line reads 300-650. A reading above this number
+    # means that sensor sees black.
+    LINE_THRESHOLD = 200
 
     def __init__(self, alvik):
         self.alvik = alvik
@@ -27,30 +33,7 @@ class SuperBot:
         self.nano_led = NanoLED()
 
         # --- BUTTON INITIALIZATION ---
-        self.btn_up = Button(self.alvik.get_touch_up)
-        self.btn_down = Button(self.alvik.get_touch_down)
-        self.btn_left = Button(self.alvik.get_touch_left)
-        self.btn_right = Button(self.alvik.get_touch_right)
-        self.btn_ok = Button(self.alvik.get_touch_ok)
-        self.btn_cancel = Button(self.alvik.get_touch_cancel)
-
-        # Same six, reachable by name so students write sb.pressed('ok').
-        self._touch = {
-            'up': self.btn_up,
-            'down': self.btn_down,
-            'left': self.btn_left,
-            'right': self.btn_right,
-            'ok': self.btn_ok,
-            'cancel': self.btn_cancel,
-        }
-        self._touch_state = {
-            'up': self.alvik.get_touch_up,
-            'down': self.alvik.get_touch_down,
-            'left': self.alvik.get_touch_left,
-            'right': self.alvik.get_touch_right,
-            'ok': self.alvik.get_touch_ok,
-            'cancel': self.alvik.get_touch_cancel,
-        }
+        self._wire_touch()
 
         # 1. Setup Shared I2C Bus (Raw MicroPython object)
         try:
@@ -74,6 +57,22 @@ class SuperBot:
         self.line = LineFollower(self.alvik)
 
         print("SuperBot Init Complete.")
+
+    def _wire_touch(self):
+        """Every pad in TOUCH_NAMES, reachable by name, so students write
+        sb.pressed('ok'). Also kept as btn_up, btn_ok and so on.
+
+        Built from TOUCH_NAMES and nothing else, so a pad added to the
+        list is wired everywhere at once. A method of its own so the
+        host tests can run it without the I2C half of the constructor.
+        """
+        self._touch = {}
+        self._touch_state = {}
+        for name in self.TOUCH_NAMES:
+            getter = getattr(self.alvik, "get_touch_" + name)
+            self._touch[name] = Button(getter)
+            self._touch_state[name] = getter
+            setattr(self, "btn_" + name, self._touch[name])
 
     @staticmethod
     def closest_valid(readings):
@@ -161,4 +160,4 @@ class SuperBot:
         """
         self.ui.update_display(line1, line2, line3)
 
-print("Loaded superbot.py V03")
+print("Loaded superbot.py V04")

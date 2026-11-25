@@ -1,4 +1,4 @@
-# tests/regression_solutions.py -- solution-level regression. V04
+# tests/regression_solutions.py -- solution-level regression. V05
 #
 # Runs the real files out of solutions/, unmodified, inside the testbench.
 # Every test returns (status, message) the way the rest of the suite does:
@@ -8,7 +8,7 @@ import os
 
 from tb import scoreboard
 from tb.env import Environment, solution
-from tb.plant import Plant, Target, DEFAULT_DEFECTS
+from tb.plant import Plant, Target, Track, DEFAULT_DEFECTS
 from tb.stimulus import ApproachStimulus, Coverage
 
 # Line alignment. Parked for Term 2 and renamed to sol1x. The checks
@@ -534,6 +534,146 @@ def test_p09_has_no_gamepad():
         with open(path) as handle:
             if "RobotGamepad" in handle.read():
                 return 0, "%s uses RobotGamepad" % os.path.basename(path)
+    return 1, ""
+
+
+# --------------------------------------------------------------------------
+# P10 -- the line racer
+# --------------------------------------------------------------------------
+
+P10 = "sol10_line_racer.py"
+P10_SCAFFOLD = os.path.join(os.path.dirname(os.path.dirname(solution(P10))),
+                            "projects", "p10_line_racer.py")
+
+# The board: line from x = 0 to x = 150, a black end region past each
+# end, and an obstacle on the line halfway.
+P10_TRACK_END_CM = 150.0
+P10_OBSTACLE = (75.0, 0.0)
+P10_OBSTACLE_RADIUS_CM = 4.0
+P10_ROBOT_HALF_WIDTH_CM = 5.0
+
+
+class _HoldPadAt:
+    """Holds one touch pad from sim_ms on. OK starts the race, Center
+    starts ping-pong."""
+
+    def __init__(self, pad, sim_ms=500):
+        self.pad = pad
+        self.sim_ms = sim_ms
+
+    def touch(self, name, env):
+        return name == self.pad and env.clock.now_ms >= self.sim_ms
+
+
+class _TracePlant(Plant):
+    """A plant that remembers where the robot has really been."""
+
+    def __init__(self, *args, **kwargs):
+        self.trace = []
+        Plant.__init__(self, *args, **kwargs)
+
+    def _advance_pose(self, distance_cm, turn_deg):
+        Plant._advance_pose(self, distance_cm, turn_deg)
+        self.trace.append((self.x, self.y))
+
+
+def _run_racer(pad, watchdog_ms, path=None, obstacle=True):
+    target = None
+    if obstacle:
+        target = Target(P10_OBSTACLE[0], P10_OBSTACLE[1], "stand",
+                        radius_cm=P10_OBSTACLE_RADIUS_CM)
+    plant = _TracePlant(track=Track(0.0, P10_TRACK_END_CM),
+                        start=(2.0, 0.0, 0.0), target=target)
+    env = Environment(plant=plant, stimulus=_HoldPadAt(pad),
+                      watchdog_ms=watchdog_ms)
+    env.run(path or solution(P10))
+    return env
+
+
+def _went_round_on_the_left(trace):
+    """Truth from the plant: beside the obstacle the robot was on its
+    left (+y, for a robot heading along +x), and never inside it."""
+    ox, oy = P10_OBSTACLE
+    clear = P10_OBSTACLE_RADIUS_CM + P10_ROBOT_HALF_WIDTH_CM - 1.0
+    beside = [y for x, y in trace if abs(x - ox) < 3.0]
+    if not beside:
+        return 0, "never drew level with the obstacle"
+    for x, y in trace:
+        if ((x - ox) ** 2 + (y - oy) ** 2) ** 0.5 < clear:
+            return 0, "drove into the obstacle at (%.1f, %.1f)" % (x, y)
+    if min(beside) < 0:
+        return 0, "passed the obstacle on the right"
+    return 1, ""
+
+
+def test_p10_races_to_the_end():
+    """OK starts the race. The robot follows the line, goes round the
+    obstacle to the LEFT, finds the line again and follows it to the
+    end -- all judged on where the plant says it really went."""
+    if not _have(P10):
+        return 2, "%s not written yet" % P10
+    env = _run_racer("ok", watchdog_ms=60000)
+    trace = env.plant.trace
+    after = [abs(y) for x, y in trace
+             if P10_OBSTACLE[0] + 30.0 < x < P10_TRACK_END_CM - 5.0]
+    if not after:
+        return 0, "never got past the obstacle"
+    if min(after) > 1.5:
+        return 0, "never found the line again after the obstacle"
+    end = [abs(y) for x, y in trace if abs(x - P10_TRACK_END_CM) < 2.0]
+    if not end or min(end) > 3.0:
+        return 0, "did not follow the line to the end"
+    return _first_failure(_ran_without_raising(env),
+                          _went_round_on_the_left(trace))
+
+
+def test_p10_race_runs_off_the_end():
+    """In a race the robot just runs blind past the end; a student
+    picks it up. Only Center turns it around."""
+    if not _have(P10):
+        return 2, "%s not written yet" % P10
+    env = _run_racer("ok", watchdog_ms=60000)
+    furthest = max(x for x, _y in env.plant.trace)
+    if furthest < P10_TRACK_END_CM + 15.0:
+        return 0, "turned back at the end in a race (got to x=%.0f)" % furthest
+    return _ran_without_raising(env)
+
+
+def test_p10_ping_pong():
+    """Center starts the FLEX. All three sensors on an end region spin
+    the robot round, so it shuttles end to end, round the obstacle on
+    its own left each way, and stays on the board."""
+    if not _have(P10):
+        return 2, "%s not written yet" % P10
+    env = _run_racer("center", watchdog_ms=150000)
+    trace = env.plant.trace
+    visits = []
+    for x, _y in trace:
+        end = "far" if x > P10_TRACK_END_CM - 5.0 else (
+            "near" if x < 5.0 else None)
+        if end and (not visits or visits[-1] != end):
+            visits.append(end)
+    if visits.count("far") < 2:
+        return 0, "reached the far end %d time(s): %s" % (
+            visits.count("far"), visits)
+    for x, y in trace:
+        if abs(y) > 25.0 or not -15.0 < x < P10_TRACK_END_CM + 15.0:
+            return 0, "left the board at (%.0f, %.0f)" % (x, y)
+    return _ran_without_raising(env)
+
+
+def test_p10_scaffold_runs():
+    """The given code in the scaffold runs as handed out: the two-button
+    start, the line-sensor reader and the screen, with no state yet."""
+    if not os.path.exists(P10_SCAFFOLD):
+        return 2, "scaffold not written yet"
+    for pad in ("ok", "center"):
+        env = _run_racer(pad, watchdog_ms=5000, path=P10_SCAFFOLD)
+        status = _ran_without_raising(env)
+        if status[0] == 0:
+            return 0, "started on %s: %s" % (pad, status[1])
+        if env.plant.distance_travelled_cm > 1.0:
+            return 0, "the bare scaffold moved the robot"
     return 1, ""
 
 

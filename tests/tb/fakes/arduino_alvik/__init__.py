@@ -1,4 +1,4 @@
-# tests/tb/fakes/arduino_alvik/__init__.py -- the BFM. V01
+# tests/tb/fakes/arduino_alvik/__init__.py -- the BFM. V02
 #
 # Shadows the real arduino_alvik package while a DUT runs. It decides
 # nothing. Every call is translated into a plant command or a plant query,
@@ -106,3 +106,6 @@ class ArduinoAlvik:
 
     def get_touch_cancel(self):
         return wiring.active().touch("cancel")
+
+    def get_touch_center(self):
+        return wiring.active().touch("center")

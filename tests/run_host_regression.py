@@ -35,6 +35,11 @@ def main():
     runner.run_test("Host: Touch held/pressed", regression_host.test_touch_held_and_pressed)
     runner.run_test("Host: Unknown Button Name", regression_host.test_unknown_button_name_raises)
     runner.run_test("Host: Closest valid distance", regression_host.test_closest_valid)
+    runner.run_test("Host: Center touch pad", regression_host.test_center_pad)
+    runner.run_test("Host: LINE_THRESHOLD splits white from black",
+                    regression_host.test_line_threshold)
+    runner.run_test("Host: follow_line has no kick after reset",
+                    regression_host.test_follow_line_no_kick_after_reset)
     runner.run_test("Host: Missing HuskyLens is not an error",
                     regression_host.test_missing_huskylens_is_not_an_error)
 
@@ -61,9 +66,9 @@ def main():
 
     print("\n--- Running Guide Tests ---")
     import regression_guides
-    runner.run_test("Guides: P09's quoted patterns match their projects",
+    runner.run_test("Guides: P09 and P10 quoted patterns match their projects",
                     regression_guides.test_quoted_patterns_match_their_projects)
-    runner.run_test("Guides: P09's named constants exist",
+    runner.run_test("Guides: P09 and P10 named constants exist",
                     regression_guides.test_named_constants_exist)
     runner.run_test("Guides: the guide checks can fail",
                     regression_guides.test_the_checks_can_fail)

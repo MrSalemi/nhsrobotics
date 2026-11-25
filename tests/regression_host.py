@@ -1,4 +1,4 @@
-"""Tests for nhs_lib that need no hardware. V04
+"""Tests for nhs_lib that need no hardware. V05
 
 Same (status, message) contract as the other regression_*.py modules, so
 RegressionRunner reports them the same way:
@@ -65,7 +65,7 @@ class FakeAlvik:
         self.left_led = FakeLed()
         self.right_led = FakeLed()
         self.touch = dict.fromkeys(
-            ("up", "down", "left", "right", "ok", "cancel"), False)
+            ("up", "down", "left", "right", "ok", "cancel", "center"), False)
 
     def __getattr__(self, name):
         if name.startswith("get_touch_"):
@@ -96,13 +96,12 @@ class _BareGamepad(RobotGamepad):
 
 
 def _bare_superbot(alvik):
-    """A SuperBot without its hardware constructor."""
+    """A SuperBot without its hardware constructor. The touch pads are
+    wired by the real SuperBot._wire_touch(), so these tests exercise
+    the library's own wiring rather than a copy of it."""
     sb = _BareSuperBot()
     sb.alvik = alvik
-    sb._touch = {n: Button(getattr(alvik, "get_touch_" + n))
-                 for n in SuperBot.TOUCH_NAMES}
-    sb._touch_state = {n: getattr(alvik, "get_touch_" + n)
-                       for n in SuperBot.TOUCH_NAMES}
+    sb._wire_touch()
     return sb
 
 
@@ -282,4 +281,100 @@ def test_closest_valid():
     return 1, ""
 
 
-print("Loaded regression_host.py V04")
+def test_center_pad():
+    """The pad between the four arrows answers to 'center'.
+
+    P10 starts its ping-pong run on it, so it has to behave like the
+    other six: held while touched, pressed once per touch, and no other
+    pad wakes it.
+    """
+    alvik = FakeAlvik()
+    sb = _bare_superbot(alvik)
+
+    alvik.touch['ok'] = True
+    if sb.held('center'):
+        return 0, "touching ok made center report held"
+    alvik.touch['ok'] = False
+
+    alvik.touch['center'] = True
+    if not sb.held('center'):
+        return 0, "center did not report held"
+    edges = [sb.pressed('center') for _ in range(3)]
+    if edges != [True, False, False]:
+        return 0, "holding center gave pressed() %s" % edges
+    if sb.held('ok'):
+        return 0, "touching center made ok report held"
+    return 1, ""
+
+
+def test_line_threshold():
+    """sb.LINE_THRESHOLD splits white from black on the measured numbers.
+
+    DECISIONS #21: white reads about 50, a sensor on the line 300-650.
+    The threshold has to sit clear of both, or a project comparing
+    against it sees black on white paper or misses the line.
+    """
+    white_max = 50 * 2      # twice the white reading: scuffs and glare
+    black_min = 300
+    t = SuperBot.LINE_THRESHOLD
+    if not white_max < t < black_min:
+        return 0, "LINE_THRESHOLD %s is not between %s and %s" % (
+            t, white_max, black_min)
+    sb = _bare_superbot(FakeAlvik())
+    if sb.LINE_THRESHOLD != t:
+        return 0, "sb.LINE_THRESHOLD is not the class value"
+    return 1, ""
+
+
+def test_follow_line_no_kick_after_reset():
+    """The first steering step after reset_line() is proportional only.
+
+    reset() zeroes the last error. Compared against zero, a robot that
+    starts beside the line reads its whole offset as a jump in one 20 ms
+    tick, and the derivative term slams one wheel backwards. In the P10
+    sim that spun the robot in place on the line instead of following.
+    """
+    from nhs_robotics import line_follower
+
+    class _Clock:
+        def __init__(self):
+            self.now = 0
+
+        def ticks_ms(self):
+            return self.now
+
+        def ticks_diff(self, later, earlier):
+            return later - earlier
+
+    class _Sensors:
+        reading = (500, 200, 50)        # line under the left sensor
+
+        def get_line_sensors(self):
+            return self.reading
+
+    real_time = line_follower.time
+    clock = _Clock()
+    line_follower.time = clock
+    try:
+        lf = line_follower.LineFollower(_Sensors())
+        l, c, r = _Sensors.reading
+        error = (r - l) / (l + c + r)
+        for label in ("first call", "after reset"):
+            clock.now += 20
+            if label == "after reset":
+                lf.reset()
+            clock.now += 20
+            left, right = lf.follow(30)
+            proportional = abs(lf.KP * error)
+            if abs(left - 30) > proportional + 1e-6:
+                return 0, "%s: steered %.1f, P alone is %.1f" % (
+                    label, abs(left - 30), proportional)
+            # Moving the robot is still allowed to use the derivative.
+            clock.now += 20
+            lf.follow(30)
+    finally:
+        line_follower.time = real_time
+    return 1, ""
+
+
+print("Loaded regression_host.py V05")

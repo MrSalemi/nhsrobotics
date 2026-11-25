@@ -40,6 +40,11 @@ def main():
 
     print("\n--- Running Logic Tests ---")
     runner.run_test("Host: Closest valid distance", regression_host.test_closest_valid)
+    runner.run_test("Host: Center touch pad", regression_host.test_center_pad)
+    runner.run_test("Host: LINE_THRESHOLD splits white from black",
+                    regression_host.test_line_threshold)
+    runner.run_test("Host: follow_line has no kick after reset",
+                    regression_host.test_follow_line_no_kick_after_reset)
     runner.run_test("Host: Missing HuskyLens is not an error",
                     regression_host.test_missing_huskylens_is_not_an_error)
     runner.run_test("Logic: Calculate Approach Vector", regression_logic.test_calculate_approach_vector, bot)

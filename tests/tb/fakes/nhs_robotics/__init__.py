@@ -1,4 +1,4 @@
-# tests/tb/fakes/nhs_robotics/__init__.py -- SuperBot's stand-in. V01
+# tests/tb/fakes/nhs_robotics/__init__.py -- SuperBot's stand-in. V02
 #
 # NOT the real SuperBot. The real one needs I2C, a Qwiic bus and an OLED,
 # none of which exist on a laptop.
@@ -9,7 +9,36 @@
 # to the real rule shows up here instead of being quietly mirrored. If a
 # fake reimplements the thing under test, it stops being a test.
 
+import os
+import re
+
 from tb import wiring
+
+_REAL_LIB = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__)))))),
+    "nhs_lib", "nhs_robotics")
+
+
+def _real_line_threshold():
+    """LINE_THRESHOLD as the real superbot.py sets it. Read from the
+    source, because importing the real SuperBot reaches for I2C."""
+    with open(os.path.join(_REAL_LIB, "superbot.py")) as handle:
+        found = re.search(r"^\s*LINE_THRESHOLD\s*=\s*(\d+)", handle.read(),
+                          re.M)
+    return int(found.group(1))
+
+
+def _real_line_follower(alvik):
+    """The real LineFollower, loaded fresh for this run so that its
+    `import time` picks up the simulated clock. The steering under test
+    is the library's own, not a copy of it."""
+    import importlib.util
+    path = os.path.join(_REAL_LIB, "line_follower.py")
+    spec = importlib.util.spec_from_file_location("_tb_line_follower", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.LineFollower(alvik)
 
 try:
     from nhs_robotics.superbot import SuperBot as _RealSuperBot
@@ -50,11 +79,13 @@ class Button:
 
 
 class SuperBot:
-    TOUCH_NAMES = ('up', 'down', 'left', 'right', 'ok', 'cancel')
+    TOUCH_NAMES = ('up', 'down', 'left', 'right', 'ok', 'cancel', 'center')
+    LINE_THRESHOLD = _real_line_threshold()
 
     def __init__(self, alvik):
         self.alvik = alvik
         self.nano_led = NanoLED()
+        self.line = _real_line_follower(alvik)
         self._edges = {name: Button(lambda n=name: wiring.active().touch(n))
                        for name in self.TOUCH_NAMES}
 
@@ -65,6 +96,18 @@ class SuperBot:
 
     def get_yaw(self):
         return self.alvik.get_orientation()[2]
+
+    # --- line following, by the real library ---
+
+    def follow_line(self, base_speed):
+        return self.line.follow(base_speed)
+
+    @property
+    def line_lost(self):
+        return self.line.line_lost
+
+    def reset_line(self):
+        self.line.reset()
 
     # --- buttons ---
 

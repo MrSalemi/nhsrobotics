@@ -1,8 +1,9 @@
-# tests/regression_guides.py -- guide-level regression. V02
+# tests/regression_guides.py -- guide-level regression. V03
 #
-# Every block in P09 is either a pattern quoted from an earlier
-# project's guide or WORK 1's given code, quoted from P09's own
-# scaffold. Nothing used to check that the quote still matched
+# Every block in P09 and P10 is either a pattern quoted from an
+# earlier project's guide or given code from the project's own
+# scaffold. P10's follow_line() usage is given as a comment in its
+# scaffold, so a commented-out copy counts as given too. Nothing used to check that the quote still matched
 # the project it came from: P08 changed on 2026-10-20 and P09 went on
 # printing a P08 that no longer existed. These checks are that guard.
 #
@@ -17,7 +18,7 @@ GUIDES = os.path.join(REPO, "guides")
 PROJECTS = os.path.join(REPO, "projects")
 
 # Guides whose code blocks are all quotes from earlier guides.
-QUOTING_GUIDES = ("p09.md",)
+QUOTING_GUIDES = ("p09.md", "p10.md")
 
 _FENCE = re.compile(r"^```.*?$\n(.*?)^```\s*$", re.M | re.S)
 _CAPS_NAME = re.compile(r"`([A-Z][A-Z0-9_]*)`")
@@ -53,13 +54,30 @@ def _dedented(lines, width):
     return [line[width:] if line.startswith(pad) else line for line in lines]
 
 
+def _uncommented(lines):
+    """The scaffold with a leading "# " taken off every comment line, so
+    code shown to students as a comment can be found."""
+    out = []
+    for line in lines:
+        bare = line.lstrip()
+        if bare.startswith("# "):
+            out.append(bare[2:])
+        elif bare == "#":
+            out.append("")
+        else:
+            out.append(line)
+    return out
+
+
 def _in_own_scaffold(guide, block):
     """True when the block is given code in this project's own scaffold,
-    at any indent the loop puts it at."""
+    at any indent the loop puts it at, or shown there as a comment."""
     path = _scaffold_for(int(guide[1:3]))
     if not path:
         return False
     lines = _read(path).split("\n")
+    if _contains(_uncommented(lines), block):
+        return True
     return any(_contains(_dedented(lines, width), block)
                for width in (0, 4, 8, 12))
 
@@ -130,4 +148,8 @@ def test_the_checks_can_fail():
         return 0, "a quote of a deleted P08 state was not caught"
     if not names_defined_nowhere("p09.md", "Use `STUBBORN_CM` here."):
         return 0, "a name no scaffold defines was not caught"
+    wrong_usage = ("```\nleft_speed, right_speed = sb.follow_line()\n"
+                   "alvik.set_wheels_speed(left_speed, right_speed)\n```\n")
+    if not quotes_missing_from_earlier_guides("p10.md", wrong_usage):
+        return 0, "follow_line() usage the scaffold does not show was not caught"
     return 1, ""

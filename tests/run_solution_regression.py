@@ -58,6 +58,13 @@ TESTS = [
      solutions.test_p09_stays_in_with_the_floor_echo),
     ("P09: no gamepad", solutions.test_p09_has_no_gamepad),
 
+    ("P10: races to the end, round the obstacle on the left",
+     solutions.test_p10_races_to_the_end),
+    ("P10: a race runs off the end", solutions.test_p10_race_runs_off_the_end),
+    ("P10: Center ping-pongs end to end", solutions.test_p10_ping_pong),
+    ("P10: the scaffold runs as handed out",
+     solutions.test_p10_scaffold_runs),
+
     ("Line: squares up (directed)", solutions.test_line_squares_up_from_one_approach),
     ("Line: squares up (40 generated approaches)",
      solutions.test_line_random_approaches),

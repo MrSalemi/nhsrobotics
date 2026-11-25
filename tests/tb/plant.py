@@ -1,4 +1,4 @@
-# tests/tb/plant.py -- the reference model of the robot's world. V03
+# tests/tb/plant.py -- the reference model of the robot's world. V04
 #
 # The plant owns the truth: where the robot really is, where the line
 # really is, what the sensors would really report. The DUT never sees any
@@ -65,6 +65,37 @@ class Target:
         self.spooked = False
 
 
+class Track:
+    """P10's racing board: a white board with a black line along the x
+    axis from x0 to x1, and a black region past each end.
+
+    The end regions are wide enough that all three sensors land on them
+    at once, which is how a ping-pong robot knows it reached an end.
+    Everything else -- including off the edge of the board -- is white.
+    """
+
+    def __init__(self, x0=0.0, x1=150.0, end_len_cm=10.0,
+                 end_half_width_cm=6.0, line_half_width_cm=None):
+        self.x0 = float(x0)
+        self.x1 = float(x1)
+        self.end_len_cm = float(end_len_cm)
+        self.end_half_width_cm = float(end_half_width_cm)
+        self.line_half_width_cm = (LINE_HALF_WIDTH_CM
+                                   if line_half_width_cm is None
+                                   else float(line_half_width_cm))
+
+    def in_end_region(self, x, y):
+        if abs(y) > self.end_half_width_cm:
+            return False
+        return (self.x0 - self.end_len_cm <= x < self.x0
+                or self.x1 < x <= self.x1 + self.end_len_cm)
+
+    def is_black(self, x, y):
+        if self.in_end_region(x, y):
+            return True
+        return self.x0 <= x <= self.x1 and abs(y) <= self.line_half_width_cm
+
+
 # --- measured hardware defects, from REFERENCE.md ---
 # Every one of these is a knob so a test can prove a project is immune to
 # it, rather than a comment claiming so.
@@ -87,7 +118,7 @@ DEFAULT_DEFECTS = {
 class Plant:
     def __init__(self, line_point=(40.0, 0.0), line_angle_deg=90.0,
                  start=(0.0, 0.0, 0.0), wall_distance_cm=None, defects=None,
-                 target=None, ring=None):
+                 target=None, ring=None, track=None):
         self.defects = dict(DEFAULT_DEFECTS)
         if defects:
             self.defects.update(defects)
@@ -101,6 +132,9 @@ class Plant:
         # origin. When one is set the line sensors report the ring
         # instead of a strip of tape.
         self.ring = ring
+        # P10's racing board. When one is set the line sensors report it
+        # instead of an endless strip of tape.
+        self.track = track
         self.target = target
         self.max_radius_cm = math.hypot(self.x, self.y)
         self.left_ring = False
@@ -311,6 +345,12 @@ class Plant:
                 if math.hypot(point[0], point[1]) > inner_radius
                 else SENSOR_ON_VALUE
                 for point in self.sensor_positions())
+
+        if self.track is not None:
+            return tuple(
+                SENSOR_ON_VALUE if self.track.is_black(p[0], p[1])
+                else SENSOR_OFF_VALUE
+                for p in self.sensor_positions())
 
         return tuple(
             SENSOR_ON_VALUE if self._distance_to_line(p) <= LINE_HALF_WIDTH_CM
