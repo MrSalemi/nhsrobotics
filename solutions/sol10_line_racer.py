@@ -37,7 +37,7 @@ SEARCHING = "SEARCHING"
 ALIGNING = "ALIGNING"
 
 DODGE_OUT_DEG = 45      # turn left, away from the line
-DODGE_CM = 25           # drive past the obstacle
+DODGE_CM = 20           # drive past the obstacle
 DODGE_BACK_DEG = -90    # turn right, back toward the line
 SEARCH_RPM = 25         # straight ahead until a sensor sees black
 SENSOR_AHEAD_CM = 5     # line sensors sit this far ahead of the wheels
@@ -200,3 +200,5 @@ finally:
     alvik.stop()  # GIVEN. Always call this. It stops the robot software
                   # and frees the WiFi network. Without it the robot can
                   # hang and need a restart.
+
+
